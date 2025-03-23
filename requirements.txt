@@ -10,7 +10,7 @@ spacy==3.4.1
 pdfplumber==0.7.5
 python-docx==0.8.11
 wordcloud
-numpy==1.24.0
+numpy==1.25
 plotly==5.5.0
 beautifulsoup4==4.10.0
 requests==2.28.1
