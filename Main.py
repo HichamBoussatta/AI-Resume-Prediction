@@ -1,10 +1,12 @@
 import spacy
 import os
+import subprocess
 
-# Tenter de charger le modèle spaCy, s'il échoue, télécharger le modèle
+# Tenter de charger le modèle spaCy, sinon le télécharger
 try:
     nlp = spacy.load("fr_core_news_sm")
 except OSError:
     print("Le modèle fr_core_news_sm n'est pas trouvé, téléchargement...")
-    os.system("python -m spacy download fr_core_news_sm")
+    # Télécharger le modèle avec subprocess
+    subprocess.check_call([os.sys.executable, "-m", "spacy", "download", "fr_core_news_sm"])
     nlp = spacy.load("fr_core_news_sm")
