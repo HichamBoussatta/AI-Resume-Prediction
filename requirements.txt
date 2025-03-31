@@ -6,9 +6,7 @@ matplotlib
 scikit-learn
 imblearn
 nltk
-spacy==3.8.4
-fr_core_news_sm==3.0.0
-streamlit==1.44.0
+spacy
 pdfplumber
 python-docx
 wordcloud
