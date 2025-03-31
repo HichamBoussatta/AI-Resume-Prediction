@@ -1,9 +1,10 @@
 import spacy
 import os
 
-# Vérifier si le modèle est déjà installé, sinon le télécharger
-if not os.path.exists(spacy.util.get_data_path() + "/fr_core_news_sm"):
+# Tenter de charger le modèle spaCy, s'il échoue, télécharger le modèle
+try:
+    nlp = spacy.load("fr_core_news_sm")
+except OSError:
+    print("Le modèle fr_core_news_sm n'est pas trouvé, téléchargement...")
     os.system("python -m spacy download fr_core_news_sm")
-
-# Charger le modèle spaCy
-nlp = spacy.load("fr_core_news_sm")
+    nlp = spacy.load("fr_core_news_sm")
