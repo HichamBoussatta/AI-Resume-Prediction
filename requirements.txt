@@ -7,7 +7,6 @@ scikit-learn
 imblearn
 nltk
 spacy
-fr-core-news-sm
 pdfplumber
 python-docx
 wordcloud
