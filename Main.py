@@ -90,15 +90,7 @@ def resume_classification():
         return text
 
     # Charger les données
-    import gdown
-
-    # Lien de partage Google Drive
-    url = 'https://docs.google.com/spreadsheets/d/1u8LATNF-rf23Qt32zyqHvIM4zftW-zP5ePu6WnGQSqQ/edit?usp=sharing'
-    gdown.download(url, 'categorized_cvs.csv', quiet=False)
-
-    # Maintenant, tu peux lire le fichier
-    df = pd.read_csv('categorized_cvs.csv')
-    #df = pd.read_csv(r'C:\Users\hicha\Desktop\AI-Resume-Classification\categorized_cvs.csv')
+    df = pd.read_csv(r'C:\Users\hicha\Desktop\AI-Resume-Classification\categorized_cvs.csv')
 
 
     # Suppression des lignes avec des valeurs manquantes
@@ -342,9 +334,9 @@ def automated_cv_analysis():
     # Télécharger les stopwords
     nltk.download("stopwords")
     # Télécharger le modèle si nécessaire
-    #os.system("python -m spacy download fr_core_news_sm")
+    os.system("python -m spacy download fr_core_news_sm")
     # Charger le modèle de langage français de SpaCy
-    #nlp = spacy.load("fr_core_news_sm")
+    nlp = spacy.load("fr_core_news_sm")
 
     def extract_text(uploaded_file):
         # Obtenir le nom du fichier pour vérifier son extension
