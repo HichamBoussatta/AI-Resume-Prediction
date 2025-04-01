@@ -40,6 +40,7 @@ from imblearn.over_sampling import SMOTE
 from imblearn.under_sampling import RandomUnderSampler
 from imblearn.combine import SMOTEENN
 import shutil
+import gdown
 
 # --- Fonction d'authentification ---
 def authenticate_user():
@@ -89,8 +90,14 @@ def resume_classification():
         text = " ".join([word for word in text.split() if word not in all_stop_words])  # Supprimer les stopwords
         return text
 
-    # Charger les données
-    df = pd.read_csv(r'C:\Users\hicha\Desktop\AI-Resume-Classification\categorized_cvs.csv')
+
+    # Télécharger et charger le CSV
+    file_url = "https://drive.google.com/uc?id=1-5Hw-uq7-NFJjcU7LuD_pgK42yJc8lxR"
+    df = pd.read_csv(gdown.download(file_url, quiet=True), on_bad_lines='skip')
+
+    # Afficher le contenu du DataFrame
+    #print(df.head())
+    #df = pd.read_csv(r'C:\Users\hicha\Desktop\AI-Resume-Classification\categorized_cvs.csv')
 
 
     # Suppression des lignes avec des valeurs manquantes
@@ -334,9 +341,9 @@ def automated_cv_analysis():
     # Télécharger les stopwords
     nltk.download("stopwords")
     # Télécharger le modèle si nécessaire
-    os.system("python -m spacy download fr_core_news_sm")
+    #os.system("python -m spacy download fr_core_news_sm")
     # Charger le modèle de langage français de SpaCy
-    nlp = spacy.load("fr_core_news_sm")
+    #nlp = spacy.load("fr_core_news_sm")
 
     def extract_text(uploaded_file):
         # Obtenir le nom du fichier pour vérifier son extension
