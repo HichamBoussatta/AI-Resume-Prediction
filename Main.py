@@ -90,7 +90,15 @@ def resume_classification():
         return text
 
     # Charger les données
-    df = pd.read_csv(r'C:\Users\hicha\Desktop\AI-Resume-Classification\categorized_cvs.csv')
+    import gdown
+
+    # Lien de partage Google Drive
+    url = 'https://drive.google.com/file/d/1-5Hw-uq7-NFJjcU7LuD_pgK42yJc8lxR/view?usp=drive_link'
+    gdown.download(url, 'categorized_cvs.csv', quiet=False)
+
+    # Maintenant, tu peux lire le fichier
+    df = pd.read_csv('categorized_cvs.csv')
+    #df = pd.read_csv(r'C:\Users\hicha\Desktop\AI-Resume-Classification\categorized_cvs.csv')
 
 
     # Suppression des lignes avec des valeurs manquantes
