@@ -93,7 +93,7 @@ def resume_classification():
     import gdown
 
     # Lien de partage Google Drive
-    url = 'https://drive.google.com/file/d/1-5Hw-uq7-NFJjcU7LuD_pgK42yJc8lxR/view?usp=drive_link'
+    url = 'https://docs.google.com/spreadsheets/d/1u8LATNF-rf23Qt32zyqHvIM4zftW-zP5ePu6WnGQSqQ/edit?usp=sharing'
     gdown.download(url, 'categorized_cvs.csv', quiet=False)
 
     # Maintenant, tu peux lire le fichier
