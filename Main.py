@@ -41,6 +41,8 @@ from imblearn.under_sampling import RandomUnderSampler
 from imblearn.combine import SMOTEENN
 import shutil
 import gdown
+from pydrive.auth import GoogleAuth
+from pydrive.drive import GoogleDrive
 
 # --- Fonction d'authentification ---
 def authenticate_user():
@@ -192,8 +194,30 @@ def resume_classification():
     best_model_name = ""
     model_trained = False  # Flag pour suivre si les modèles ont été entraînés
 
+
+    # Authentification manuelle avec les paramètres directement dans le script
+    gauth = GoogleAuth()
+
+    # Configuration client directement dans le script
+    gauth.client_id = "783152113975-ltbsq8lc8io5h0mqsqpdse288etvip6q.apps.googleusercontent.com"
+    gauth.client_secret = "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"
+    gauth.save_credentials = True
+    gauth.save_credentials_backend = 'file'
+    gauth.save_credentials_file = 'credentials.json'
+    gauth.get_refresh_token = True
+    gauth.oauth_scope = ['https://www.googleapis.com/auth/drive.file']
+
+    # Authentification OAuth
+    gauth.LocalWebserverAuth()
+
+    # Connexion à Google Drive
+    drive = GoogleDrive(gauth)
+
+    # ID du modèle dans Google Drive
+    models_dir = "1OaKR_9g_gpLNI0pSYbNJKNdO4jn4d35z"  # L'ID du fichier ou dossier Google Drive
+
     # Définir un chemin local pour sauvegarder les modèles
-    models_dir = r'C:\Users\hicha\Desktop\AI-Resume-Classification\Models' # Le dossier "Models" dans le répertoire actuel
+    #models_dir = r'C:\Users\hicha\Desktop\AI-Resume-Classification\Models' # Le dossier "Models" dans le répertoire actuel
 
     # Bouton pour entraîner les modèles
     if st.sidebar.button("Entraîner les modèles"):
@@ -314,11 +338,37 @@ def resume_classification():
             best_model_acc = best_model_info[2]
 
             st.write(f"**Meilleur modèle : {best_model_name} avec une précision de {best_model_acc:.4f}**")
+                # Authentification Google Drive
+            # Authentification manuelle avec les paramètres directement dans le script
+            gauth = GoogleAuth()
+
+            # Configuration client directement dans le script
+            gauth.client_id = "783152113975-ltbsq8lc8io5h0mqsqpdse288etvip6q.apps.googleusercontent.com"
+            gauth.client_secret = "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"
+            gauth.save_credentials = True
+            gauth.save_credentials_backend = 'file'
+            gauth.save_credentials_file = 'credentials.json'
+            gauth.get_refresh_token = True
+            gauth.oauth_scope = ['https://www.googleapis.com/auth/drive.file']
+
+            # Authentification OAuth
+            gauth.LocalWebserverAuth()
+
+            # Connexion à Google Drive
+            drive = GoogleDrive(gauth)
+
+            # ID du modèle dans Google Drive
+            models_dir = "1OaKR_9g_gpLNI0pSYbNJKNdO4jn4d35z"  # L'ID du fichier ou dossier Google Drive
+
+            # Chemins des modèles à sauvegarder
+            model_path = models_dir + '/best_model.pkl'
+            tfidf_path = models_dir + '/tfidf_vectorizer.pkl'
+            label_encoder_path = models_dir + '/label_encoder.pkl'
 
             # Sauvegarde du meilleur modèle
-            model_path = r'C:\Users\hicha\Desktop\AI-Resume-Classification\Models\best_model.pkl'
-            tfidf_path = r'C:\Users\hicha\Desktop\AI-Resume-Classification\Models\tfidf_vectorizer.pkl'
-            label_encoder_path = r'C:\Users\hicha\Desktop\AI-Resume-Classification\Models\label_encoder.pkl'
+            #model_path = r'C:\Users\hicha\Desktop\AI-Resume-Classification\Models\best_model.pkl'
+            #tfidf_path = r'C:\Users\hicha\Desktop\AI-Resume-Classification\Models\tfidf_vectorizer.pkl'
+            #label_encoder_path = r'C:\Users\hicha\Desktop\AI-Resume-Classification\Models\label_encoder.pkl'
 
 
             try:
