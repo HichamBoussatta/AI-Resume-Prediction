@@ -92,9 +92,8 @@ def resume_classification():
 
 
     # Télécharger et charger le CSV
-    file_url = "https://drive.google.com/uc?id=1DOLzDtoNQyZPYAnzbkgJjdnFo2-7tqJk"
+    file_url = "https://drive.google.com/uc?id=1-5Hw-uq7-NFJjcU7LuD_pgK42yJc8lxR"
     df = pd.read_csv(gdown.download(file_url, quiet=True), on_bad_lines='skip')
-
 
     # Afficher le contenu du DataFrame
     #print(df.head())
