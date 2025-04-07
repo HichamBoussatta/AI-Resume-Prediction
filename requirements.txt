@@ -17,3 +17,4 @@ requests
 gdown
 pydrive
 oauth2client
+google-auth-oauthlib
