@@ -1,6 +1,7 @@
 import streamlit as st
 import joblib
 import os
+import io
 import pandas as pd
 import re
 import seaborn as sns
@@ -29,10 +30,6 @@ from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from collections import Counter
 from datetime import datetime
-import streamlit as st
-import matplotlib.pyplot as plt
-import seaborn as sns
-# Importations nécessaires
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.naive_bayes import MultinomialNB
@@ -43,6 +40,16 @@ import shutil
 import gdown
 from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
+import sklearn
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+from google.auth.transport.requests import Request
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaIoBaseDownload, MediaIoBaseUpload, MediaFileUpload
+from googleapiclient.errors import HttpError
+import tempfile
+import time
+
 
 # --- Fonction d'authentification ---
 def authenticate_user():
@@ -92,14 +99,9 @@ def resume_classification():
         text = " ".join([word for word in text.split() if word not in all_stop_words])  # Supprimer les stopwords
         return text
 
-
     # Télécharger et charger le CSV
     file_url = "https://drive.google.com/uc?id=1-5Hw-uq7-NFJjcU7LuD_pgK42yJc8lxR"
     df = pd.read_csv(gdown.download(file_url, quiet=True), on_bad_lines='skip')
-
-    # Afficher le contenu du DataFrame
-    #print(df.head())
-    #df = pd.read_csv(r'C:\Users\hicha\Desktop\AI-Resume-Classification\categorized_cvs.csv')
 
 
     # Suppression des lignes avec des valeurs manquantes
@@ -137,9 +139,6 @@ def resume_classification():
     # Interface Streamlit
     st.title("Entraînement des modèles de classification")
 
-    # Affichage du tableau de comparaison des classes avant et après l'équilibrage
-    #st.subheader("Comparaison de la distribution des classes avant et après équilibrage")
-    #st.dataframe(class_distribution_comparison)
 
     # Séparation des données en train/test (80% train, 20% test)
     X_train, X_test, y_train, y_test = train_test_split(X_resampled, y_resampled, test_size=0.2, random_state=42)
@@ -194,30 +193,12 @@ def resume_classification():
     best_model_name = ""
     model_trained = False  # Flag pour suivre si les modèles ont été entraînés
 
-
-    # Authentification manuelle avec les paramètres directement dans le script
-    gauth = GoogleAuth()
-
-    # Configuration client directement dans le script
-    gauth.client_id = "783152113975-ltbsq8lc8io5h0mqsqpdse288etvip6q.apps.googleusercontent.com"
-    gauth.client_secret = "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"
-    gauth.save_credentials = True
-    gauth.save_credentials_backend = 'file'
-    gauth.save_credentials_file = 'credentials.json'
-    gauth.get_refresh_token = True
-    gauth.oauth_scope = ['https://www.googleapis.com/auth/drive.file']
-
-    # Authentification OAuth
-    gauth.LocalWebserverAuth()
-
-    # Connexion à Google Drive
+    # Authentification et connexion à Google Drive
+    gauth = GoogleAuth(settings_file='settings2.yaml')
     drive = GoogleDrive(gauth)
 
     # ID du modèle dans Google Drive
-    models_dir = "1OaKR_9g_gpLNI0pSYbNJKNdO4jn4d35z"  # L'ID du fichier ou dossier Google Drive
-
-    # Définir un chemin local pour sauvegarder les modèles
-    #models_dir = r'C:\Users\hicha\Desktop\AI-Resume-Classification\Models' # Le dossier "Models" dans le répertoire actuel
+    models_dir = "1OaKR_9g_gpLNI0pSYbNJKNdO4jn4d35z"  # L'ID du dossier Google Drive
 
     # Bouton pour entraîner les modèles
     if st.sidebar.button("Entraîner les modèles"):
@@ -295,36 +276,6 @@ def resume_classification():
             st.subheader("Tableau des Métriques des Modèles")
             st.dataframe(results_df)
 
-            # Affichage des graphiques séparés pour chaque métrique
-
-            # Graphique pour Accuracy
-            #st.subheader("Précision (Accuracy)")
-            #fig, ax = plt.subplots(figsize=(10, 5))
-            #sns.barplot(x='Model', y='Accuracy', data=results_df, palette="viridis", ax=ax)
-            #ax.set_title('Précision (Accuracy)')
-            #st.pyplot(fig)
-
-            # Graphique pour Precision
-            #st.subheader("Précision (Precision)")
-            #fig, ax = plt.subplots(figsize=(10, 5))
-            #sns.barplot(x='Model', y='Precision', data=results_df, palette="viridis", ax=ax)
-            #ax.set_title('Précision (Precision)')
-            #st.pyplot(fig)
-
-            # Graphique pour Recall
-            #st.subheader("Rappel (Recall)")
-            #fig, ax = plt.subplots(figsize=(10, 5))
-            #sns.barplot(x='Model', y='Recall', data=results_df, palette="viridis", ax=ax)
-            #ax.set_title('Rappel (Recall)')
-            #st.pyplot(fig)
-
-            # Graphique pour F1-Score
-            #st.subheader("F1-Score")
-            #fig, ax = plt.subplots(figsize=(10, 5))
-            #sns.barplot(x='Model', y='F1-Score', data=results_df, palette="viridis", ax=ax)
-            #ax.set_title('F1-Score')
-            #st.pyplot(fig)
-
             # Déterminer le meilleur modèle
             best_model_info = max([(logreg_model, "Logistic Regression", acc_logreg),
                                   (rf_model, "Random Forest", acc_rf),
@@ -338,51 +289,58 @@ def resume_classification():
             best_model_acc = best_model_info[2]
 
             st.write(f"**Meilleur modèle : {best_model_name} avec une précision de {best_model_acc:.4f}**")
-                # Authentification Google Drive
-            # Authentification manuelle avec les paramètres directement dans le script
-            gauth = GoogleAuth()
 
-            # Configuration client directement dans le script
-            gauth.client_id = "783152113975-ltbsq8lc8io5h0mqsqpdse288etvip6q.apps.googleusercontent.com"
-            gauth.client_secret = "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"
-            gauth.save_credentials = True
-            gauth.save_credentials_backend = 'file'
-            gauth.save_credentials_file = 'credentials.json'
-            gauth.get_refresh_token = True
-            gauth.oauth_scope = ['https://www.googleapis.com/auth/drive.file']
 
-            # Authentification OAuth
-            gauth.LocalWebserverAuth()
-
-            # Connexion à Google Drive
+            # 🔹 Authentification et connexion à Google Drive
+            gauth = GoogleAuth(settings_file='settings2.yaml')
             drive = GoogleDrive(gauth)
 
-            # ID du modèle dans Google Drive
-            models_dir = "1OaKR_9g_gpLNI0pSYbNJKNdO4jn4d35z"  # L'ID du fichier ou dossier Google Drive
+            # 🔹 ID du dossier Google Drive
+            models_dir = "1OaKR_9g_gpLNI0pSYbNJKNdO4jn4d35z"
 
-            # Chemins des modèles à sauvegarder
-            model_path = models_dir + '/best_model.pkl'
-            tfidf_path = models_dir + '/tfidf_vectorizer.pkl'
-            label_encoder_path = models_dir + '/label_encoder.pkl'
-
-            # Sauvegarde du meilleur modèle
-            #model_path = r'C:\Users\hicha\Desktop\AI-Resume-Classification\Models\best_model.pkl'
-            #tfidf_path = r'C:\Users\hicha\Desktop\AI-Resume-Classification\Models\tfidf_vectorizer.pkl'
-            #label_encoder_path = r'C:\Users\hicha\Desktop\AI-Resume-Classification\Models\label_encoder.pkl'
-
+            # 🔹 Chemins des modèles en local
+            local_model_path = "best_model.pkl"
+            local_tfidf_path = "tfidf_vectorizer.pkl"
+            local_label_encoder_path = "label_encoder.pkl"
 
             try:
-                st.write(f"Début de la sauvegarde du modèle à {model_path}")
-                joblib.dump(best_model, model_path)
-                joblib.dump(tfidf_vectorizer, tfidf_path)
-                joblib.dump(label_encoder, label_encoder_path)
-                st.success(f"✅ Modèle, TfidfVectorizer et LabelEncoder sauvegardés avec succès.")
+                st.write(f"Début de la sauvegarde du modèle à {local_model_path}")
+
+                # 🔹 Sauvegarde en local
+                joblib.dump(best_model, local_model_path)
+                joblib.dump(tfidf_vectorizer, local_tfidf_path)
+                joblib.dump(label_encoder, local_label_encoder_path)
+
+                st.success(f"✅ Modèle, TfidfVectorizer et LabelEncoder sauvegardés avec succès en local.")
+
+                # 🔹 Fonction pour uploader un fichier sur Google Drive
+                def upload_to_drive(local_path, drive_folder_id, filename):
+                    file_drive = drive.CreateFile({'title': filename, 'parents': [{'id': drive_folder_id}]})
+                    file_drive.SetContentFile(local_path)
+                    file_drive.Upload()
+                    return file_drive['id']
+
+                st.write("🔄 Upload des modèles vers Google Drive...")
+
+                # 🔹 Upload vers Google Drive
+                model_id = upload_to_drive(local_model_path, models_dir, "best_model.pkl")
+                tfidf_id = upload_to_drive(local_tfidf_path, models_dir, "tfidf_vectorizer.pkl")
+                label_encoder_id = upload_to_drive(local_label_encoder_path, models_dir, "label_encoder.pkl")
+
+                st.success("✅ Modèles sauvegardés sur Google Drive avec succès !")
+
+                # 🔹 Affichage des liens de téléchargement
+                st.write(f"🔗 [Best Model](https://drive.google.com/file/d/{model_id}/view)")
+                st.write(f"🔗 [TF-IDF Vectorizer](https://drive.google.com/file/d/{tfidf_id}/view)")
+                st.write(f"🔗 [Label Encoder](https://drive.google.com/file/d/{label_encoder_id}/view)")
+
             except FileNotFoundError as fnf_error:
                 st.error(f"❌ Erreur FileNotFoundError : {str(fnf_error)}")
             except PermissionError as perm_error:
                 st.error(f"❌ Erreur PermissionError : {str(perm_error)}")
             except Exception as e:
                 st.error(f"❌ Erreur inconnue lors de la sauvegarde du modèle : {str(e)}")
+
 
 
 # --- Script 2: Automated CV Analysis and Job Match ---
@@ -395,18 +353,54 @@ def automated_cv_analysis():
     # Charger le modèle de langage français de SpaCy
     #nlp = spacy.load("fr_core_news_sm")
 
-    def extract_text(uploaded_file):
-        # Obtenir le nom du fichier pour vérifier son extension
-        file_name = uploaded_file.name.lower()
+    # Fonction pour extraire le texte d'un fichier (PDF, DOCX, texte, ou fichier Google Drive)
+    def extract_text(uploaded_file=None, file_id=None, service=None):
+        if uploaded_file:  # Si un fichier est téléchargé via Streamlit
+            file_name = uploaded_file.name.lower()
 
-        if file_name.endswith(".pdf"):
-            with pdfplumber.open(uploaded_file) as pdf:
-                return " ".join([page.extract_text() for page in pdf.pages if page.extract_text()])
-        elif file_name.endswith(".docx"):
-            doc = docx.Document(uploaded_file)
-            return " ".join([para.text for para in doc.paragraphs])
-        else:
-            return StringIO(uploaded_file.getvalue().decode("utf-8")).read()
+            if file_name.endswith(".pdf"):
+                with pdfplumber.open(uploaded_file) as pdf:
+                    return " ".join([page.extract_text() for page in pdf.pages if page.extract_text()])
+
+            elif file_name.endswith(".docx"):
+                doc = docx.Document(uploaded_file)
+                return " ".join([para.text for para in doc.paragraphs])
+
+            else:  # Pour les fichiers texte ou autres formats
+                try:
+                    return uploaded_file.read().decode("utf-8")
+                except UnicodeDecodeError:
+                    return "Erreur de décodage, le fichier n'est pas en UTF-8."
+        elif file_id and service:  # Si un fichier est sur Google Drive
+            request = service.files().get_media(fileId=file_id)
+            file_io = io.BytesIO()
+            downloader = MediaIoBaseDownload(file_io, request)
+            
+            done = False
+            while done is False:
+                status, done = downloader.next_chunk()
+
+            file_io.seek(0)
+            
+            # On détermine le type du fichier en fonction de son extension
+            file_info = service.files().get(fileId=file_id).execute()
+            mime_type = file_info['mimeType']
+
+            if mime_type == 'application/pdf':
+                with pdfplumber.open(file_io) as pdf:
+                    return " ".join([page.extract_text() for page in pdf.pages if page.extract_text()])
+
+            elif mime_type == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
+                doc = docx.Document(file_io)
+                return " ".join([para.text for para in doc.paragraphs])
+
+            elif mime_type == 'text/plain':
+                return file_io.read().decode('utf-8')
+
+            else:
+                return "Format de fichier non pris en charge pour l'extraction de texte."
+
+        return "Aucun fichier à traiter."
 
     # 📌 Fonction de nettoyage du texte
     def clean_text(text):
@@ -545,91 +539,198 @@ def automated_cv_analysis():
         fig.update_layout(polar=dict(radialaxis=dict(visible=True)), showlegend=True)
         st.plotly_chart(fig)
 
-    # 📌 Fonction pour scraper l'offre d'emploi
-    def scrape_job_description(url):
-        headers = {'User-Agent': 'Mozilla/5.0'}
-        response = requests.get(url, headers=headers)
-        
-        if response.status_code == 200:
-            soup = BeautifulSoup(response.content, "html.parser")
-            
-            # Extraire les sections pertinentes
-            description_section = soup.find('div', class_='job-description')
-            qualifications_section = soup.find('div', class_='job-qualifications')
-            criteria_section = soup.find('ul', class_='arrow-list')
-            
-            # Concatenation des sections
-            description = ""
-            if description_section:
-                description += description_section.get_text(separator="\n", strip=True) + "\n"
-            if qualifications_section:
-                description += qualifications_section.get_text(separator="\n", strip=True) + "\n"
-            if criteria_section:
-                description += criteria_section.get_text(separator="\n", strip=True) + "\n"
-            
-            return description
-        else:
-            return ""
-        
-    # 📌 Fonction pour comparer les technologies avec un répertoire de CVs
-    def compare_technologies_with_cvs(job_description, cvs_directory=r'C:\Users\hicha\Desktop\AI-Resume-Classification\BaseCVs'):
-        # Extraire les technologies de l'offre d'emploi
-        job_tech_counts = extract_technologies_with_count(job_description)
+    # Fonction d'authentification avec gestion automatique du refresh token
+    def authenticate_google_drive():
+        creds = None
+        SCOPES = ['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/drive.readonly']
 
-        # Initialisation des résultats
+        # Charger le token existant s'il existe
+        if os.path.exists('token.json'):
+            creds = Credentials.from_authorized_user_file('token.json', SCOPES)
+
+        # Vérifier si le token est expiré et peut être rafraîchi
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+
+        # Si aucune crédential valide n'est trouvée, demander une nouvelle authentification
+        if not creds or not creds.valid:
+            flow = InstalledAppFlow.from_client_secrets_file('credentialss.json', SCOPES)
+            creds = flow.run_local_server(port=8080, access_type='offline', prompt='consent')
+
+            # Sauvegarder le token pour réutilisation future
+            with open('token.json', 'w') as token:
+                token.write(creds.to_json())
+
+        return build('drive', 'v3', credentials=creds)
+
+    # Fonction pour chercher un fichier par son nom dans un répertoire spécifique sur Google Drive
+    def find_file_in_drive(service, file_name, folder_id):
+        query = f"'{folder_id}' in parents and name='{file_name}'"
+        results = service.files().list(q=query).execute()
+        files = results.get('files', [])
+        if not files:
+            return None
+        return files[0]  # Retourner le premier fichier trouvé (si plusieurs fichiers ont le même nom, retourne le premier)
+
+    # Fonction pour télécharger un fichier vers un autre répertoire de Google Drive
+    def upload_file_to_drive(service, file_name, file_content, folder_id):
+        # Créer un répertoire temporaire dédié
+        temp_dir = os.path.join(os.getcwd(), 'temp_uploads')
+        if not os.path.exists(temp_dir):
+            os.makedirs(temp_dir)  # Créer le répertoire s'il n'existe pas
+
+        temp_file_path = os.path.join(temp_dir, file_name)
+        
+        # Créer un fichier temporaire avec delete=False
+        with open(temp_file_path, 'wb') as temp_file:
+            temp_file.write(file_content.read())  # Écrire le contenu du fichier téléchargé
+            temp_file.flush()  # Assurez-vous que tout est écrit dans le fichier
+
+        # Créer le média pour l'upload
+        media = MediaFileUpload(temp_file_path, mimetype='application/octet-stream')
+
+        # Metadata du fichier à télécharger
+        file_metadata = {
+            'name': file_name,
+            'parents': [folder_id]
+        }
+
+        # Télécharger le fichier vers Google Drive
+        uploaded_file = service.files().create(
+            media_body=media,
+            body=file_metadata,
+            fields='id'
+        ).execute()
+
+        # Attendre un petit moment avant de supprimer le fichier pour éviter des conflits
+        time.sleep(1)
+
+        # Essayer plusieurs fois de supprimer le fichier (si le fichier est encore utilisé)
+        for _ in range(3):
+            try:
+                os.remove(temp_file_path)  # Supprimer le fichier temporaire
+                break  # Sortir de la boucle dès que le fichier est supprimé avec succès
+            except PermissionError:
+                time.sleep(1)  # Attendre un peu avant de réessayer
+
+        return uploaded_file
+
+
+    # Fonction pour télécharger un fichier depuis Google Drive
+    def download_file_from_drive(service, file_id):
+        request = service.files().get_media(fileId=file_id)
+        file = io.BytesIO()
+        downloader = MediaIoBaseDownload(file, request)
+        done = False
+        while done is False:
+            status, done = downloader.next_chunk()
+        file.seek(0)  # Remettre le curseur au début du fichier
+        return file
+    
+    # Fonction pour vérifier si un fichier existe déjà dans le dossier Output sur Google Drive
+    def file_exists_in_output(service, file_name, output_folder_id):
+        query = f"'{output_folder_id}' in parents and name='{file_name}'"
+        results = service.files().list(q=query).execute()
+        files = results.get('files', [])
+        return len(files) > 0  # Si la longueur de la liste est > 0, cela signifie qu'un fichier existe déjà
+
+    # Fonction pour lister les fichiers dans un dossier spécifique
+    def list_files_in_folder(service, folder_id):
+        results = service.files().list(
+            q=f"'{folder_id}' in parents and trashed=false",
+            fields="files(id, name, mimeType)"
+        ).execute()
+        return results.get('files', [])
+    
+    # Fonction pour vérifier si un fichier existe déjà dans le dossier Google Drive
+    def file_exists_in_folder(service, folder_id, file_name):
+        files_in_folder = list_files_in_folder(service, folder_id)
+        for file in files_in_folder:
+            if file['name'] == file_name:
+                return True
+        return False
+    
+    # Fonction pour vérifier si un fichier existe dans Google Drive avant de le télécharger
+    def file_exists(service, file_id):
+        try:
+            # Tentative de récupérer les informations du fichier
+            file_info = service.files().get(fileId=file_id).execute()
+            return True  # Si l'ID est valide, le fichier existe
+        except HttpError as error:
+            if error.resp.status == 404:
+                return False  # Si le fichier n'existe pas
+            else:
+                raise error  # Si une autre erreur survient, la lever
+
+    # Fonction pour télécharger un fichier depuis Google Drive
+    def download_file(service, file_id):
+        if file_exists(service, file_id):
+            request = service.files().get_media(fileId=file_id)
+            file_io = io.BytesIO()
+            downloader = MediaIoBaseDownload(file_io, request)
+            
+            done = False
+            while done is False:
+                status, done = downloader.next_chunk()
+
+            file_io.seek(0)  # Revenir au début du fichier
+            return file_io  # Retourner le fichier téléchargé sous forme de BytesIO
+        else:
+            st.error(f"Le fichier avec l'ID {file_id} n'a pas été trouvé sur Google Drive.")
+            return None
+       
+    # Fonction pour comparer les technologies du CV avec celles de l'offre d'emploi
+    def compare_technologies_with_cvs(job_description):
+        job_tech_counts = extract_technologies_with_count(job_description)
         matching_cvs = []
 
-        # Parcours des fichiers dans le répertoire
-        for cv_file in os.listdir(cvs_directory):
-            cv_path = os.path.join(cvs_directory, cv_file)
-            if cv_path.endswith(('.pdf', '.docx')):  # Accepter seulement les fichiers PDF et DOCX
-                with open(cv_path, 'rb') as file:
-                    cv_text = extract_text(file)
-                    tech_counts = extract_technologies_with_count(cv_text)
+        file_url = "https://drive.google.com/uc?id=1-5Hw-uq7-NFJjcU7LuD_pgK42yJc8lxR"
+        df = pd.read_csv(gdown.download(file_url, quiet=True), on_bad_lines='skip')
 
-                    # Comparer les technologies du CV avec celles de l'offre d'emploi
-                    common_tech = set(tech_counts.keys()).intersection(set(job_tech_counts.keys()))
-                    if common_tech:
-                        # Calculer la similarité entre le CV et l'offre d'emploi
-                        similarity_score = compare_texts(cv_text, job_description)
-                        matching_cvs.append({
-                            'cv_file': cv_file,
-                            'common_tech': common_tech,
-                            'tech_counts': tech_counts,
-                            'job_tech_counts': job_tech_counts,
-                            'similarity_score': similarity_score
-                        })
-        
+        cvs_folder_id = "1HNftka5J3QEf2mV2ZZsRMQMNHgpPD_K0"
+        service = authenticate_google_drive()
+
+        if service:
+            for _, row in df.iterrows():
+                cv_file_name = row['cv_filename']
+                cv_text = row['text']
+                tech_counts = extract_technologies_with_count(cv_text)
+
+                common_tech = set(tech_counts.keys()).intersection(set(job_tech_counts.keys()))
+                if common_tech:
+                    similarity_score = compare_texts(cv_text, job_description)
+                    matching_cvs.append({
+                        'cv_file': cv_file_name,
+                        'common_tech': common_tech,
+                        'tech_counts': tech_counts,
+                        'job_tech_counts': job_tech_counts,
+                        'similarity_score': similarity_score,
+                    })
+
         return matching_cvs
     
-    # 📌 Fonction pour enregistrer les résultats dans un fichier
-    def export_matching_cvs(matching_cvs, cvs_directory=r'C:\Users\hicha\Desktop\AI-Resume-Classification\BaseCVs', output_directory=r'C:\Users\hicha\Desktop\AI-Resume-Classification\Output'):
-        if not os.path.exists(output_directory):
-            os.makedirs(output_directory)
+    # Fonction pour exporter les CVs correspondants dans un dossier Google Drive
+    def export_matching_cvs(matching_cvs, output_folder_id):
+        service = authenticate_google_drive()
+        if service:
+            for match in matching_cvs[:5]:
+                cv_file_name = match['cv_file']
+                file = find_file_in_drive(service, cv_file_name, "1HNftka5J3QEf2mV2ZZsRMQMNHgpPD_K0")
 
-        # Créer un ensemble pour suivre les fichiers déjà exportés
-        exported_files = set()
-
-        # Exporter les CVs complets dans le répertoire de sortie
-        for match in matching_cvs:
-            cv_file = match['cv_file']
-            cv_path = os.path.join(cvs_directory, cv_file)
-
-            # Vérifier si le fichier a déjà été exporté
-            if cv_file not in exported_files:
-                # Copier le CV original dans le répertoire de sortie
-                shutil.copy(cv_path, output_directory)
-                
-                # Ajouter le fichier au set des fichiers exportés
-                exported_files.add(cv_file)
-                
-                # Ajouter un fichier texte avec les technologies communes
-                output_file_path = os.path.join(output_directory, f"match_{cv_file}.txt")
-                with open(output_file_path, 'w', encoding='utf-8') as f:
-                    f.write(f"Fichier CV: {cv_file}\n")
-                    f.write(f"Technologies communes avec l'offre d'emploi: {', '.join(match['common_tech'])}\n")
-
-
+                if file:
+                    file_content = download_file_from_drive(service, file['id'])
+                    if not file_exists_in_output(service, cv_file_name, output_folder_id):
+                        uploaded_file = upload_file_to_drive(service, cv_file_name, file_content, output_folder_id)
+                        download_link = f"https://drive.google.com/uc?id={uploaded_file['id']}"
+                        st.success(f"Le fichier '{cv_file_name}' a été exporté vers Google Drive.")
+                        st.markdown(f"[Télécharger le fichier ici]({download_link})")
+                    else:
+                        st.warning(f"Le fichier '{cv_file_name}' existe déjà dans le dossier de sortie.")
+                        file = find_file_in_drive(service, cv_file_name, output_folder_id)
+                        download_link = f"https://drive.google.com/uc?id={file['id']}"
+                        st.markdown(f"[Télécharger le fichier ici]({download_link})")
+                else:
+                    st.error(f"Le fichier '{cv_file_name}' n'a pas été trouvé dans Google Drive.")
 
     # 📌 Fonction pour comparer les technologies détectées avec l'offre d'emploi
     def compare_technologies_with_job(tech_counts, job_description):
@@ -674,12 +775,50 @@ def automated_cv_analysis():
         
         return cosine_sim[0][0]
 
-    # 📌 Fonction pour prédire la catégorie et l'expérience en utilisant le modèle préalablement entraîné
+    def download_from_drive(file_id, local_path):
+        # Télécharger un fichier depuis Google Drive
+        url = f'https://drive.google.com/uc?export=download&id={file_id}'
+        response = requests.get(url)
+        
+        if response.status_code == 200:
+            with open(local_path, 'wb') as f:
+                f.write(response.content)
+            return True
+        else:
+            return False
+
+    def get_latest_file_ids(drive, folder_id):
+        # Liste des fichiers dans le dossier spécifié, triés par date de création (descendant)
+        file_list = drive.ListFile({'q': f"'{folder_id}' in parents"}).GetList()
+        file_list_sorted = sorted(file_list, key=lambda x: x['createdDate'], reverse=True)
+        
+        # Extraire les IDs des derniers fichiers
+        model_id = next((file['id'] for file in file_list_sorted if 'best_model.pkl' in file['title']), None)
+        tfidf_id = next((file['id'] for file in file_list_sorted if 'tfidf_vectorizer.pkl' in file['title']), None)
+        label_encoder_id = next((file['id'] for file in file_list_sorted if 'label_encoder.pkl' in file['title']), None)
+
+        return model_id, tfidf_id, label_encoder_id
+
     def predict_cv(cv_text):
-        # Charger les modèles et autres objets depuis le répertoire local
-        model_category = joblib.load(r"C:\Users\hicha\Desktop\AI-Resume-Classification\Models\best_model.pkl")
-        vectorizer = joblib.load(r"C:\Users\hicha\Desktop\AI-Resume-Classification\Models\tfidf_vectorizer.pkl")
-        label_encoder = joblib.load(r"C:\Users\hicha\Desktop\AI-Resume-Classification\Models\label_encoder.pkl")
+        # 🔹 Authentification et connexion à Google Drive
+        gauth = GoogleAuth(settings_file='settings2.yaml')
+        drive = GoogleDrive(gauth)
+
+        # 🔹 ID du dossier Google Drive où les modèles sont sauvegardés
+        models_dir = "1OaKR_9g_gpLNI0pSYbNJKNdO4jn4d35z"
+
+        # 🔹 Récupérer les IDs des derniers modèles sauvegardés depuis Google Drive
+        model_id, tfidf_id, label_encoder_id = get_latest_file_ids(drive, models_dir)
+
+        # Vérification que tous les modèles existent
+        if not all([model_id, tfidf_id, label_encoder_id]):
+            st.error("❌ Certains fichiers modèles sont manquants dans Google Drive.")
+            return
+
+        # 🔹 Charger les modèles téléchargés
+        model_category = joblib.load("best_model.pkl")
+        vectorizer = joblib.load("tfidf_vectorizer.pkl")
+        label_encoder = joblib.load("label_encoder.pkl")
 
         # Traitement du texte du CV
         cleaned_text = clean_text(cv_text)
@@ -691,6 +830,8 @@ def automated_cv_analysis():
         predicted_experience = detect_experience(cv_text)
 
         return predicted_category, predicted_experience
+
+
 
     # 📌 Interface Streamlit
     st.title("📄🤖 CV Analysis & Job Match")
@@ -717,8 +858,6 @@ def automated_cv_analysis():
 
     selected_skills = st.multiselect("Sélectionnez les compétences clés :", available_skills)
     ideal_profile = {skill: 1 for skill in selected_skills}
-
-    job_url = st.text_input("Entrez l'URL de l'offre d'emploi :", "")
 
     # Exemple d'URL à afficher sous le champ de saisie (non cliquable)
     st.markdown("""
@@ -760,17 +899,6 @@ def automated_cv_analysis():
                 tech_names = [tech for tech, count in top_10_tech]
                 tech_frequencies = [count for tech, count in top_10_tech]
                 
-                
-                # Créer un graphique à barres
-                #plt.figure(figsize=(10, 6))
-                #sns.barplot(x=tech_names, y=tech_frequencies, palette="viridis")
-                #plt.title("Top 10 des technologies détectées")
-                #plt.xlabel("Technologies")
-                #plt.ylabel("Fréquence")
-                #plt.xticks(rotation=45, ha="right")
-                
-                #st.pyplot(plt)
-                
             else:
                 st.subheader("🛠️ Aucune technologie détectée")
 
@@ -788,48 +916,30 @@ def automated_cv_analysis():
             # Visualisation avec le graphique radar
             plot_radar_chart(user_skills, ideal_profile)
 
-            # Extraction des technologies et comptage
             tech_counts = extract_technologies_with_count(cv_text)
 
-            # Vérification si l'URL de l'offre d'emploi est renseignée
-            if job_url:
-                # Scraper l'offre d'emploi
-                job_description = scrape_job_description(job_url)
+            job_description = st.text_area("Entrez le texte de l'offre d'emploi")
+            if job_description:
+                st.subheader("🔍 Comparaison des technologies de l'offre avec les CVs")
+                matching_cvs = compare_technologies_with_cvs(job_description)
 
-                if job_description:
-                    st.subheader("🔍 Comparaison des technologies de l'offre avec les CVs :")
-                    
-                    # Comparer les technologies du CV avec celles des CVs dans le répertoire
-                    matching_cvs = compare_technologies_with_cvs(job_description)
+                if matching_cvs:
+                    matching_cvs_sorted = sorted(matching_cvs, key=lambda x: x['similarity_score'], reverse=True)[:5]
+                    data = []
+                    for match in matching_cvs_sorted:
+                        data.append({
+                            "Nom du CV": match["cv_file"],
+                            "Technologies communes": ", ".join(match["common_tech"]),
+                            "Score de Similarité": round(match["similarity_score"], 2)
+                        })
+                    st.write(pd.DataFrame(data).sort_values(by="Score de Similarité", ascending=False))
 
-                    if matching_cvs:
-                        # Afficher un tableau avec les résultats
-                        st.write("Technologies communes trouvées dans les CVs :")
-                        data = []
-                        for match in matching_cvs:
-                            data.append({
-                                "Nom du CV": match["cv_file"],
-                                "Technologies communes": ", ".join(match["common_tech"]),
-                                "Score de Similarité": round(match["similarity_score"], 2)
-                            })
-                        # Afficher le tableau avec les informations
-                        #st.write(pd.DataFrame(data))
-                        # Afficher un tableau avec les résultats
-                        st.write(pd.DataFrame(data).sort_values(by="Score de Similarité", ascending=False))
-
-
-                        # Exporter les CVs originaux et les informations dans un répertoire
-                        export_matching_cvs(matching_cvs)
-
-                        # Afficher un message indiquant que les résultats ont été exportés
-                        st.success(f"Les CVs originaux ont été exportés dans le dossier")
-                    else:
-                        st.write("Aucune technologie commune trouvée dans les CVs.")
+                    output_folder_id = '13mvWA3lyVWq1VwLAeDsNFSY0GslnRp2v'
+                    export_matching_cvs(matching_cvs_sorted, output_folder_id)
                 else:
-                    st.error("Erreur lors du scraping de l'offre d'emploi.")
+                    st.write("Aucune technologie commune trouvée dans les CVs.")
             else:
-                st.write("Aucune URL d'offre d'emploi fournie. Pas de comparaison effectuée.")
-
+                st.error("Veuillez entrer le texte de l'offre d'emploi.")
 
 def set_sidebar_style():
     st.markdown("""
