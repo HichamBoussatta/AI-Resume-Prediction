@@ -16,3 +16,4 @@ beautifulsoup4
 requests
 gdown
 pydrive
+oauth2client
