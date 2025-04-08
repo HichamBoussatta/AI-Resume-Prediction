@@ -349,7 +349,6 @@ def resume_classification():
                     if files:
                         file_id = files[0]['id']
                         drive_service.files().delete(fileId=file_id).execute()
-                        st.write(f"❌ Fichier {filename} déjà existant, il a été supprimé.")
 
                     # Sérialiser l'objet modèle en mémoire avec io.BytesIO
                     model_data = io.BytesIO()
