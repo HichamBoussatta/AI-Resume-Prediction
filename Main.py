@@ -81,8 +81,6 @@ def authenticate_user():
 # --- Script 1: Resume Classification Model Training ---
 def resume_classification():
     nltk.download("stopwords")
-    from nltk.corpus import stopwords
-    from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
 
     # Stopwords en français et en anglais
     french_stop_words = set(stopwords.words("french"))
@@ -99,9 +97,56 @@ def resume_classification():
         text = " ".join([word for word in text.split() if word not in all_stop_words])  # Supprimer les stopwords
         return text
 
-    # Télécharger et charger le CSV
+    # Fonction d'authentification avec gestion automatique du refresh token
+    def authenticate_google_drive():
+        creds = None
+        SCOPES = ['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/drive.readonly']
+
+        # Charger le token existant s'il existe
+        if os.path.exists('token.json'):
+            creds = Credentials.from_authorized_user_file('token.json', SCOPES)
+
+        # Vérifier si le token est expiré et peut être rafraîchi
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+
+        # Si aucune crédential valide n'est trouvée, demander une nouvelle authentification
+        if not creds or not creds.valid:
+            flow = InstalledAppFlow.from_client_secrets_file('credentialss.json', SCOPES)
+            creds = flow.run_local_server(port=8080, access_type='offline', prompt='consent')
+
+            # Sauvegarder le token pour réutilisation future
+            with open('token.json', 'w') as token:
+                token.write(creds.to_json())
+
+        return build('drive', 'v3', credentials=creds)
+
+    # Télécharger un fichier CSV à partir de Google Drive en mémoire
+    def download_file_from_drive(file_id):
+        service = authenticate_google_drive()
+
+        # Utiliser l'API Google Drive pour télécharger le fichier
+        request = service.files().get_media(fileId=file_id)
+        fh = io.BytesIO()  # Flux en mémoire pour éviter le téléchargement local
+        downloader = MediaIoBaseDownload(fh, request)
+
+        done = False
+        while done is False:
+            status, done = downloader.next_chunk()
+            print(f"Download {int(status.progress() * 100)}%.")
+        
+        fh.seek(0)  # Revenir au début du flux pour pouvoir lire
+        return fh
+
+    # URL du fichier CSV
     file_url = "https://drive.google.com/uc?id=1-5Hw-uq7-NFJjcU7LuD_pgK42yJc8lxR"
-    df = pd.read_csv(gdown.download(file_url, quiet=True), on_bad_lines='skip')
+    file_id = file_url.split('id=')[1]
+
+    # Télécharger le fichier CSV depuis Google Drive en mémoire
+    file_stream = download_file_from_drive(file_id)
+
+    # Lire le CSV directement depuis le flux en mémoire avec pandas
+    df = pd.read_csv(file_stream, on_bad_lines='skip')
 
 
     # Suppression des lignes avec des valeurs manquantes
@@ -194,8 +239,7 @@ def resume_classification():
     model_trained = False  # Flag pour suivre si les modèles ont été entraînés
 
     # Authentification et connexion à Google Drive
-    gauth = GoogleAuth(settings_file='settings2.yaml')
-    drive = GoogleDrive(gauth)
+    drive_service = authenticate_google_drive()
 
     # ID du modèle dans Google Drive
     models_dir = "1OaKR_9g_gpLNI0pSYbNJKNdO4jn4d35z"  # L'ID du dossier Google Drive
@@ -290,15 +334,7 @@ def resume_classification():
 
             st.write(f"**Meilleur modèle : {best_model_name} avec une précision de {best_model_acc:.4f}**")
 
-
-            # 🔹 Authentification et connexion à Google Drive
-            gauth = GoogleAuth(settings_file='settings2.yaml')
-            drive = GoogleDrive(gauth)
-
-            # 🔹 ID du dossier Google Drive
-            models_dir = "1OaKR_9g_gpLNI0pSYbNJKNdO4jn4d35z"
-
-            # 🔹 Chemins des modèles en local
+            # Sauvegarde en local
             local_model_path = "best_model.pkl"
             local_tfidf_path = "tfidf_vectorizer.pkl"
             local_label_encoder_path = "label_encoder.pkl"
@@ -306,30 +342,29 @@ def resume_classification():
             try:
                 st.write(f"Début de la sauvegarde du modèle à {local_model_path}")
 
-                # 🔹 Sauvegarde en local
                 joblib.dump(best_model, local_model_path)
                 joblib.dump(tfidf_vectorizer, local_tfidf_path)
                 joblib.dump(label_encoder, local_label_encoder_path)
 
                 st.success(f"✅ Modèle, TfidfVectorizer et LabelEncoder sauvegardés avec succès en local.")
 
-                # 🔹 Fonction pour uploader un fichier sur Google Drive
+                # Fonction pour uploader un fichier sur Google Drive
                 def upload_to_drive(local_path, drive_folder_id, filename):
-                    file_drive = drive.CreateFile({'title': filename, 'parents': [{'id': drive_folder_id}]})
-                    file_drive.SetContentFile(local_path)
-                    file_drive.Upload()
-                    return file_drive['id']
+                    file_metadata = {'name': filename, 'parents': [drive_folder_id]}
+                    media = MediaFileUpload(local_path, mimetype='application/octet-stream')
+                    file = drive_service.files().create(body=file_metadata, media_body=media, fields='id').execute()
+                    return file['id']
 
                 st.write("🔄 Upload des modèles vers Google Drive...")
 
-                # 🔹 Upload vers Google Drive
+                # Upload vers Google Drive
                 model_id = upload_to_drive(local_model_path, models_dir, "best_model.pkl")
                 tfidf_id = upload_to_drive(local_tfidf_path, models_dir, "tfidf_vectorizer.pkl")
                 label_encoder_id = upload_to_drive(local_label_encoder_path, models_dir, "label_encoder.pkl")
 
                 st.success("✅ Modèles sauvegardés sur Google Drive avec succès !")
 
-                # 🔹 Affichage des liens de téléchargement
+                # Affichage des liens de téléchargement
                 st.write(f"🔗 [Best Model](https://drive.google.com/file/d/{model_id}/view)")
                 st.write(f"🔗 [TF-IDF Vectorizer](https://drive.google.com/file/d/{tfidf_id}/view)")
                 st.write(f"🔗 [Label Encoder](https://drive.google.com/file/d/{label_encoder_id}/view)")
@@ -787,28 +822,41 @@ def automated_cv_analysis():
         else:
             return False
 
-    def get_latest_file_ids(drive, folder_id):
+    def get_latest_file_ids(drive_service, folder_id):
         # Liste des fichiers dans le dossier spécifié, triés par date de création (descendant)
-        file_list = drive.ListFile({'q': f"'{folder_id}' in parents"}).GetList()
-        file_list_sorted = sorted(file_list, key=lambda x: x['createdDate'], reverse=True)
-        
+        results = drive_service.files().list(
+            q=f"'{folder_id}' in parents",  # Rechercher les fichiers dans ce dossier
+            fields="files(id, name, createdTime)",  # Récupérer l'ID, le nom et la date de création des fichiers
+            orderBy="createdTime desc"  # Tri par date de création décroissante
+        ).execute()
+
+        files = results.get('files', [])
+
+        if not files:
+            print("Aucun fichier trouvé.")
+            return None, None, None
+
+        # Trier les fichiers par date de création (au cas où ce n'est pas déjà fait)
+        files_sorted = sorted(files, key=lambda x: x['createdTime'], reverse=True)
+
         # Extraire les IDs des derniers fichiers
-        model_id = next((file['id'] for file in file_list_sorted if 'best_model.pkl' in file['title']), None)
-        tfidf_id = next((file['id'] for file in file_list_sorted if 'tfidf_vectorizer.pkl' in file['title']), None)
-        label_encoder_id = next((file['id'] for file in file_list_sorted if 'label_encoder.pkl' in file['title']), None)
+        model_id = next((file['id'] for file in files_sorted if 'best_model.pkl' in file['name']), None)
+        tfidf_id = next((file['id'] for file in files_sorted if 'tfidf_vectorizer.pkl' in file['name']), None)
+        label_encoder_id = next((file['id'] for file in files_sorted if 'label_encoder.pkl' in file['name']), None)
 
         return model_id, tfidf_id, label_encoder_id
 
+
+    # Fonction de prédiction
     def predict_cv(cv_text):
         # 🔹 Authentification et connexion à Google Drive
-        gauth = GoogleAuth(settings_file='settings2.yaml')
-        drive = GoogleDrive(gauth)
+        drive_service = authenticate_google_drive()
 
         # 🔹 ID du dossier Google Drive où les modèles sont sauvegardés
         models_dir = "1OaKR_9g_gpLNI0pSYbNJKNdO4jn4d35z"
 
         # 🔹 Récupérer les IDs des derniers modèles sauvegardés depuis Google Drive
-        model_id, tfidf_id, label_encoder_id = get_latest_file_ids(drive, models_dir)
+        model_id, tfidf_id, label_encoder_id = get_latest_file_ids(drive_service, models_dir)
 
         # Vérification que tous les modèles existent
         if not all([model_id, tfidf_id, label_encoder_id]):
