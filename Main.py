@@ -113,7 +113,7 @@ def resume_classification():
         # Si aucune crédential valide n'est trouvée, demander une nouvelle authentification
         if not creds or not creds.valid:
             flow = InstalledAppFlow.from_client_secrets_file('credentialss.json', SCOPES)
-            creds = flow.run_local_server(port=8080, access_type='offline', prompt='consent')
+            creds = flow.run_console(port=8080, access_type='offline', prompt='consent')
 
             # Sauvegarder le token pour réutilisation future
             with open('token.json', 'w') as token:
@@ -590,7 +590,7 @@ def automated_cv_analysis():
         # Si aucune crédential valide n'est trouvée, demander une nouvelle authentification
         if not creds or not creds.valid:
             flow = InstalledAppFlow.from_client_secrets_file('credentialss.json', SCOPES)
-            creds = flow.run_local_server(port=8080, access_type='offline', prompt='consent')
+            creds = flow.run_console(port=8080, access_type='offline', prompt='consent')
 
             # Sauvegarder le token pour réutilisation future
             with open('token.json', 'w') as token:
