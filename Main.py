@@ -59,7 +59,7 @@ def authenticate_user():
 
     # Ajouter un utilisateur et un mot de passe pour la démonstration (à sécuriser davantage dans une vraie application)
     correct_username = "admin"
-    correct_password = "123"
+    correct_password = "Ad123"
 
     error_message_shown = False  # Flag pour vérifier si l'erreur doit être affichée
 
