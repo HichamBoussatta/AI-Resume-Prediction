@@ -334,33 +334,38 @@ def resume_classification():
 
             st.write(f"**Meilleur modèle : {best_model_name} avec une précision de {best_model_acc:.4f}**")
 
-            # Sauvegarde en local
-            local_model_path = "best_model.pkl"
-            local_tfidf_path = "tfidf_vectorizer.pkl"
-            local_label_encoder_path = "label_encoder.pkl"
-
+            # Upload des modèles directement sur Google Drive
             try:
-                st.write(f"Début de la sauvegarde du modèle à {local_model_path}")
+                st.write("🔄 Upload des modèles vers Google Drive...")
 
-                joblib.dump(best_model, local_model_path)
-                joblib.dump(tfidf_vectorizer, local_tfidf_path)
-                joblib.dump(label_encoder, local_label_encoder_path)
+                # Fonction pour uploader un fichier sur Google Drive et supprimer l'ancien modèle s'il existe
+                def upload_to_drive(model, drive_folder_id, filename):
+                    # Vérification si un fichier avec le même nom existe déjà
+                    query = f"'{drive_folder_id}' in parents and name = '{filename}'"
+                    results = drive_service.files().list(q=query, fields="files(id, name)").execute()
+                    files = results.get('files', [])
 
-                st.success(f"✅ Modèle, TfidfVectorizer et LabelEncoder sauvegardés avec succès en local.")
+                    # Si le fichier existe, on le supprime
+                    if files:
+                        file_id = files[0]['id']
+                        drive_service.files().delete(fileId=file_id).execute()
+                        st.write(f"❌ Fichier {filename} déjà existant, il a été supprimé.")
 
-                # Fonction pour uploader un fichier sur Google Drive
-                def upload_to_drive(local_path, drive_folder_id, filename):
+                    # Sérialiser l'objet modèle en mémoire avec io.BytesIO
+                    model_data = io.BytesIO()
+                    joblib.dump(model, model_data)
+                    model_data.seek(0)  # Revenir au début du fichier binaire
+
+                    # Création du fichier pour Google Drive
                     file_metadata = {'name': filename, 'parents': [drive_folder_id]}
-                    media = MediaFileUpload(local_path, mimetype='application/octet-stream')
+                    media = MediaIoBaseUpload(model_data, mimetype='application/octet-stream')
                     file = drive_service.files().create(body=file_metadata, media_body=media, fields='id').execute()
                     return file['id']
 
-                st.write("🔄 Upload des modèles vers Google Drive...")
-
-                # Upload vers Google Drive
-                model_id = upload_to_drive(local_model_path, models_dir, "best_model.pkl")
-                tfidf_id = upload_to_drive(local_tfidf_path, models_dir, "tfidf_vectorizer.pkl")
-                label_encoder_id = upload_to_drive(local_label_encoder_path, models_dir, "label_encoder.pkl")
+                # Upload des modèles vers Google Drive
+                model_id = upload_to_drive(best_model, models_dir, "best_model.pkl")
+                tfidf_id = upload_to_drive(tfidf_vectorizer, models_dir, "tfidf_vectorizer.pkl")
+                label_encoder_id = upload_to_drive(label_encoder, models_dir, "label_encoder.pkl")
 
                 st.success("✅ Modèles sauvegardés sur Google Drive avec succès !")
 
@@ -377,16 +382,11 @@ def resume_classification():
                 st.error(f"❌ Erreur inconnue lors de la sauvegarde du modèle : {str(e)}")
 
 
-
 # --- Script 2: Automated CV Analysis and Job Match ---
 def automated_cv_analysis():
 
     # Télécharger les stopwords
     nltk.download("stopwords")
-    # Télécharger le modèle si nécessaire
-    #os.system("python -m spacy download fr_core_news_sm")
-    # Charger le modèle de langage français de SpaCy
-    #nlp = spacy.load("fr_core_news_sm")
 
     # Fonction pour extraire le texte d'un fichier (PDF, DOCX, texte, ou fichier Google Drive)
     def extract_text(uploaded_file=None, file_id=None, service=None):
@@ -847,6 +847,17 @@ def automated_cv_analysis():
         return model_id, tfidf_id, label_encoder_id
 
 
+    # Fonction pour télécharger un fichier depuis Google Drive
+    def download_from_drive(drive_service, file_id, local_path):
+        request = drive_service.files().get_media(fileId=file_id)
+        fh = io.FileIO(local_path, 'wb')
+        downloader = MediaIoBaseDownload(fh, request)
+        done = False
+        while done is False:
+            status, done = downloader.next_chunk()
+            print(f"Téléchargement {int(status.progress() * 100)}%.")
+        return local_path
+
     # Fonction de prédiction
     def predict_cv(cv_text):
         # 🔹 Authentification et connexion à Google Drive
@@ -863,10 +874,19 @@ def automated_cv_analysis():
             st.error("❌ Certains fichiers modèles sont manquants dans Google Drive.")
             return
 
+        # 🔹 Télécharger les modèles depuis Google Drive
+        local_model_path = "best_model.pkl"
+        local_tfidf_path = "tfidf_vectorizer.pkl"
+        local_label_encoder_path = "label_encoder.pkl"
+
+        download_from_drive(drive_service, model_id, local_model_path)
+        download_from_drive(drive_service, tfidf_id, local_tfidf_path)
+        download_from_drive(drive_service, label_encoder_id, local_label_encoder_path)
+
         # 🔹 Charger les modèles téléchargés
-        model_category = joblib.load("best_model.pkl")
-        vectorizer = joblib.load("tfidf_vectorizer.pkl")
-        label_encoder = joblib.load("label_encoder.pkl")
+        model_category = joblib.load(local_model_path)
+        vectorizer = joblib.load(local_tfidf_path)
+        label_encoder = joblib.load(local_label_encoder_path)
 
         # Traitement du texte du CV
         cleaned_text = clean_text(cv_text)
