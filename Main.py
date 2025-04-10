@@ -54,8 +54,8 @@ import time
 # --- Fonction d'authentification ---
 def authenticate_user():
     st.sidebar.title("Login")
-    username = st.sidebar.text_input("Nom d'utilisateur", "")
-    password = st.sidebar.text_input("Mot de passe", type="password")
+    username = st.sidebar.text_input("User name", "")
+    password = st.sidebar.text_input("Password", type="password")
 
     # Ajouter un utilisateur et un mot de passe pour la démonstration (à sécuriser davantage dans une vraie application)
     correct_username = "admin"
@@ -182,7 +182,7 @@ def resume_classification():
     class_distribution_comparison = pd.concat([class_distribution_before, class_distribution_after], axis=0)
 
     # Interface Streamlit
-    st.title("Entraînement des modèles de classification")
+    st.title("Training classification models")
 
 
     # Séparation des données en train/test (80% train, 20% test)
@@ -201,26 +201,26 @@ def resume_classification():
         return accuracy, precision, recall, f1, report
 
     # Section pour les hyperparamètres
-    st.sidebar.header("Paramètres des modèles")
+    st.sidebar.header("Model parameters")
 
     # Paramètres pour Logistic Regression
     logreg_max_iter = st.sidebar.number_input("Max Iterations (Logistic Regression)", min_value=100, max_value=5000, value=2000)
-    logreg_class_weight = st.sidebar.selectbox("Poids des classes (Logistic Regression)", ["balanced", "None"])
+    logreg_class_weight = st.sidebar.selectbox("Class weights (Logistic Regression)", ["balanced", "None"])
 
     # Paramètres pour Random Forest
-    rf_n_estimators = st.sidebar.selectbox("Nombre d'estimateurs (RandomForest)", [100, 200, 300])
-    rf_max_depth = st.sidebar.selectbox("Profondeur maximale (RandomForest)", [10, 20, None])
+    rf_n_estimators = st.sidebar.selectbox("Number of estimators (RandomForest)", [100, 200, 300])
+    rf_max_depth = st.sidebar.selectbox("Maximum depth (RandomForest)", [10, 20, None])
 
     # Paramètres pour SVM
     svm_kernel = st.sidebar.selectbox("Noyau (SVM)", ["linear", "rbf"])
-    svm_class_weight = st.sidebar.selectbox("Poids des classes (SVM)", ["balanced", "None"])
+    svm_class_weight = st.sidebar.selectbox("Class weights (SVM)", ["balanced", "None"])
 
     # Paramètres pour KNeighbors
-    knn_n_neighbors = st.sidebar.selectbox("Nombre de voisins (KNeighbors)", [3, 5, 7, 9])
+    knn_n_neighbors = st.sidebar.selectbox("Number of neighbors (KNeighbors)", [3, 5, 7, 9])
 
     # Paramètres pour GradientBoosting
-    gb_n_estimators = st.sidebar.selectbox("Nombre d'estimateurs (Gradient Boosting)", [100, 200, 300])
-    gb_learning_rate = st.sidebar.number_input("Taux d'apprentissage (Gradient Boosting)", min_value=0.01, max_value=1.0, value=0.1)
+    gb_n_estimators = st.sidebar.selectbox("Number of estimators (Gradient Boosting)", [100, 200, 300])
+    gb_learning_rate = st.sidebar.number_input("Apprenticeship rate (Gradient Boosting)", min_value=0.01, max_value=1.0, value=0.1)
 
     # Paramètres pour Naive Bayes
     nb_alpha = st.sidebar.number_input("Alpha (Naive Bayes)", min_value=0.1, max_value=2.0, value=1.0)
@@ -245,14 +245,16 @@ def resume_classification():
     models_dir = "1OaKR_9g_gpLNI0pSYbNJKNdO4jn4d35z"  # L'ID du dossier Google Drive
 
     # Bouton pour entraîner les modèles
-    if st.sidebar.button("Entraîner les modèles"):
+    if st.sidebar.button("Training models"):
         # Vérifier le répertoire Models et le créer s'il n'existe pas
         if not os.path.exists(models_dir):
             os.makedirs(models_dir)
-            st.write(f"Répertoire '{models_dir}' créé.")
+            #st.write(f"Directory '{models_dir}' created.")
+            st.write("")
         else:
-            st.write(f"Répertoire '{models_dir}' déjà existant.")
-        with st.spinner("Les modèles sont en cours d'entraînement..."):
+            #st.write(f"Directory '{models_dir}' Existed.")
+            st.write("")
+        with st.spinner("The models are in training..."):
             # Régression logistique
             logreg_model = LogisticRegression(max_iter=logreg_max_iter, class_weight=logreg_class_weight)
             logreg_model.fit(X_train, y_train)
@@ -317,7 +319,7 @@ def resume_classification():
             results_df = pd.DataFrame(results)
 
             # Affichage des résultats sous forme de tableau
-            st.subheader("Tableau des Métriques des Modèles")
+            st.subheader("Table of Model Metrics")
             st.dataframe(results_df)
 
             # Déterminer le meilleur modèle
@@ -332,11 +334,11 @@ def resume_classification():
             best_model = best_model_info[0]
             best_model_acc = best_model_info[2]
 
-            st.write(f"**Meilleur modèle : {best_model_name} avec une précision de {best_model_acc:.4f}**")
+            st.write(f"**Best {best_model_name} Model with an accuracy of {best_model_acc:.4f}**")
 
             # Upload des modèles directement sur Google Drive
             try:
-                st.write("🔄 Upload des modèles vers Google Drive...")
+                st.write("🔄 Uploading models to the database...")
 
                 # Fonction pour uploader un fichier sur Google Drive et supprimer l'ancien modèle s'il existe
                 def upload_to_drive(model, drive_folder_id, filename):
@@ -366,7 +368,7 @@ def resume_classification():
                 tfidf_id = upload_to_drive(tfidf_vectorizer, models_dir, "tfidf_vectorizer.pkl")
                 label_encoder_id = upload_to_drive(label_encoder, models_dir, "label_encoder.pkl")
 
-                st.success("✅ Modèles sauvegardés sur Google Drive avec succès !")
+                st.success("✅ Models were successfully saved to the database!")
 
                 # Affichage des liens de téléchargement
                 st.write(f"🔗 [Best Model](https://drive.google.com/file/d/{model_id}/view)")
@@ -378,7 +380,7 @@ def resume_classification():
             except PermissionError as perm_error:
                 st.error(f"❌ Erreur PermissionError : {str(perm_error)}")
             except Exception as e:
-                st.error(f"❌ Erreur inconnue lors de la sauvegarde du modèle : {str(e)}")
+                st.error(f"❌ Unknown error when saving model : {str(e)}")
 
 
 # --- Script 2: Automated CV Analysis and Job Match ---
@@ -404,7 +406,7 @@ def automated_cv_analysis():
                 try:
                     return uploaded_file.read().decode("utf-8")
                 except UnicodeDecodeError:
-                    return "Erreur de décodage, le fichier n'est pas en UTF-8."
+                    return "Decoding error, the file is not in UTF-8."
         elif file_id and service:  # Si un fichier est sur Google Drive
             request = service.files().get_media(fileId=file_id)
             file_io = io.BytesIO()
@@ -432,9 +434,9 @@ def automated_cv_analysis():
                 return file_io.read().decode('utf-8')
 
             else:
-                return "Format de fichier non pris en charge pour l'extraction de texte."
+                return "File format not supported for text extraction."
 
-        return "Aucun fichier à traiter."
+        return "No files to process."
 
     # 📌 Fonction de nettoyage du texte
     def clean_text(text):
@@ -710,7 +712,7 @@ def automated_cv_analysis():
             file_io.seek(0)  # Revenir au début du fichier
             return file_io  # Retourner le fichier téléchargé sous forme de BytesIO
         else:
-            st.error(f"Le fichier avec l'ID {file_id} n'a pas été trouvé sur Google Drive.")
+            st.error(f"The file with the given ID{file_id} was not found in the database.")
             return None
        
     # Fonction pour comparer les technologies du CV avec celles de l'offre d'emploi
@@ -756,15 +758,15 @@ def automated_cv_analysis():
                     if not file_exists_in_output(service, cv_file_name, output_folder_id):
                         uploaded_file = upload_file_to_drive(service, cv_file_name, file_content, output_folder_id)
                         download_link = f"https://drive.google.com/uc?id={uploaded_file['id']}"
-                        st.success(f"Le fichier '{cv_file_name}' a été exporté vers Google Drive.")
-                        st.markdown(f"[Télécharger le fichier ici]({download_link})")
+                        st.success(f"The file '{cv_file_name}' has been successfully saved to the database.")
+                        st.markdown(f"[Download file here]({download_link})")
                     else:
-                        st.warning(f"Le fichier '{cv_file_name}' existe déjà dans le dossier de sortie.")
+                        st.warning(f"The file '{cv_file_name}' already exists in the database.")
                         file = find_file_in_drive(service, cv_file_name, output_folder_id)
                         download_link = f"https://drive.google.com/uc?id={file['id']}"
-                        st.markdown(f"[Télécharger le fichier ici]({download_link})")
+                        st.markdown(f"[Download file here]({download_link})")
                 else:
-                    st.error(f"Le fichier '{cv_file_name}' n'a pas été trouvé dans Google Drive.")
+                    st.error(f"The file '{cv_file_name}' was not found in the database.")
 
     # 📌 Fonction pour comparer les technologies détectées avec l'offre d'emploi
     def compare_technologies_with_job(tech_counts, job_description):
@@ -854,7 +856,7 @@ def automated_cv_analysis():
         done = False
         while done is False:
             status, done = downloader.next_chunk()
-            print(f"Téléchargement {int(status.progress() * 100)}%.")
+            print(f"Download {int(status.progress() * 100)}%.")
         return local_path
 
     # Fonction de prédiction
@@ -870,7 +872,7 @@ def automated_cv_analysis():
 
         # Vérification que tous les modèles existent
         if not all([model_id, tfidf_id, label_encoder_id]):
-            st.error("❌ Certains fichiers modèles sont manquants dans Google Drive.")
+            st.error("❌  Some template files are missing from the database.")
             return
 
         # 🔹 Télécharger les modèles depuis Google Drive
@@ -902,12 +904,12 @@ def automated_cv_analysis():
 
     # 📌 Interface Streamlit
     st.title("📄🤖 CV Analysis & Job Match")
-    st.subheader("Chargez un CV et obtenez la prédiction du métier et de l'expérience.")
+    st.subheader("Upload a CV and get a job prediction")
 
-    uploaded_file = st.file_uploader("📤 Importer un fichier (PDF, DOCX, TXT)", type=["pdf", "docx", "txt"])
+    uploaded_file = st.file_uploader("📤 Import a file (PDF, DOCX, TXT)", type=["pdf", "docx", "txt"])
 
     # 🔥 L'utilisateur peut définir son propre profil idéal
-    st.subheader("🔧 Définissez votre profil idéal")
+    st.subheader("🔧 Define your ideal profile")
     available_skills = ["Python","SQL","Sql","Spark","AWS","Kafka","Airflow","Snowflake","Redshift","Databricks","Docker","Kubernetes","Jenkins","ETL","Pipeline","Machine Learning",
             "Deep Learning","NLP","Computer Vision","TensorFlow","PyTorch","Keras","Scikit-learn","Transformers","BERT","LSTM","GANs","Reinforcement Learning","Tableau",
             "Power BI","Excel","Looker","Google Data Studio","DAX","Pandas","Matplotlib","Reporting","Dashboard","Visualization","Terraform","CI/CD","Ansible","Git","Helm","Prometheus","Grafana","ArgoCD","Istio",
@@ -923,31 +925,25 @@ def automated_cv_analysis():
             "Industrial IoT","IoT Security","TCP/IP","BGP","OSPF","SDN","Cisco","Juniper","Wireshark","Routing","Switching","Network Security","VLAN","MPLS",
             "Project Management","Agile","Scrum","PMP","Kanban","Jira","Confluence","SAFe","Prince2","Risk Management","Stakeholder Management","Product Ownership"]
 
-    selected_skills = st.multiselect("Sélectionnez les compétences clés :", available_skills)
+    selected_skills = st.multiselect("Select key competencies :", available_skills)
     ideal_profile = {skill: 1 for skill in selected_skills}
 
-    # Exemple d'URL à afficher sous le champ de saisie (non cliquable)
-    st.markdown("""
-    *Exemple d'URL de la plateforme Emploi.ma :*  
-    https://www.emploi.ma/offre-emploi-maroc/senior-data-engineers-hf-casablanca-rabat-8802045
-    """)
-
     if uploaded_file:
-        with st.spinner("🔍 Analyse en cours..."):
+        with st.spinner("🔍 Analysis in progress..."):
             cv_text = extract_text(uploaded_file)
             cleaned_cv_text = clean_text(cv_text)
 
-            st.subheader("🔍 Contenu du CV :")
-            st.text_area("Texte extrait :", cv_text, height=200)
+            st.subheader("🔍 CV content :")
+            st.text_area("Extracted text:", cv_text, height=200)
 
             category, experience = predict_cv(cv_text)
-            st.subheader(f"🎯 Métier : **{category}**")
+            st.subheader(f"🎯 Job prediction : **{category}**")
 
             # Extraction des technologies et comptage
             tech_counts = extract_technologies_with_count(cv_text)
 
             if tech_counts:
-                st.subheader("🛠️ Technologies détectées et leurs fréquences :")
+                st.subheader("🛠️ Technologies detected and their frequencies :")
                 
                 # Trier les technologies par fréquence (du plus élevé au plus bas)
                 sorted_tech_counts = sorted(tech_counts.items(), key=lambda x: x[1], reverse=True)
@@ -959,7 +955,7 @@ def automated_cv_analysis():
                 top_10_tech = [(tech.capitalize(), count) for tech, count in top_10_tech]
                 
                 # Affichage sous forme de tableau
-                tech_data = [{"Technologie": tech, "Fréquence": count} for tech, count in top_10_tech]
+                tech_data = [{"Technology": tech, "Frequency": count} for tech, count in top_10_tech]
                 st.table(tech_data)
                 
                 # Affichage avec un graphique à barres
@@ -967,10 +963,10 @@ def automated_cv_analysis():
                 tech_frequencies = [count for tech, count in top_10_tech]
                 
             else:
-                st.subheader("🛠️ Aucune technologie détectée")
+                st.subheader("🛠️ No technology detected")
 
             # 🔥 Ajout du graphique radar
-            st.subheader("📊 Visualisation des compétences")
+            st.subheader("📊 Visualizing skills")
 
             # Prendre uniquement les 10 technologies les plus fréquentes
             top_10_tech = sorted(tech_counts.items(), key=lambda x: x[1], reverse=True)[:10]
@@ -985,9 +981,9 @@ def automated_cv_analysis():
 
             tech_counts = extract_technologies_with_count(cv_text)
 
-            job_description = st.text_area("Entrez le texte de l'offre d'emploi")
+            job_description = st.text_area("Enter the text of the job offer")
             if job_description:
-                st.subheader("🔍 Comparaison des technologies de l'offre avec les CVs")
+                st.subheader("🔍 Comparison of supply technologies with CVs")
                 matching_cvs = compare_technologies_with_cvs(job_description)
 
                 if matching_cvs:
@@ -995,18 +991,18 @@ def automated_cv_analysis():
                     data = []
                     for match in matching_cvs_sorted:
                         data.append({
-                            "Nom du CV": match["cv_file"],
-                            "Technologies communes": ", ".join(match["common_tech"]),
-                            "Score de Similarité": round(match["similarity_score"], 2)
+                            "CV name": match["cv_file"],
+                            "Common technologies": ", ".join(match["common_tech"]),
+                            "Similarity score": round(match["similarity_score"], 2)
                         })
-                    st.write(pd.DataFrame(data).sort_values(by="Score de Similarité", ascending=False))
+                    st.write(pd.DataFrame(data).sort_values(by="Similarity score", ascending=False))
 
                     output_folder_id = '13mvWA3lyVWq1VwLAeDsNFSY0GslnRp2v'
                     export_matching_cvs(matching_cvs_sorted, output_folder_id)
                 else:
-                    st.write("Aucune technologie commune trouvée dans les CVs.")
+                    st.write("No common technologies found in CVs.")
             else:
-                st.error("Veuillez entrer le texte de l'offre d'emploi.")
+                st.error("Please enter the text of the job offer.")
 
 def set_sidebar_style():
     st.markdown("""
@@ -1056,7 +1052,7 @@ def main():
 
     # Utiliser des boutons radio pour les onglets (afin de mieux les styliser)
     option = st.sidebar.radio(
-        "Choisissez un onglet",
+        "Choose a tab",
         ("Resume Classification", "CV Analysis and Job Match"),
         index=0,  # Index de l'onglet par défaut
         key="sidebar_radio"
@@ -1069,7 +1065,7 @@ def main():
             resume_classification()  # Si authentification réussie, afficher le contenu
         else:
             st.title("📂✨ Smart Resume Classification")
-            st.write("Accès non autorisé. Veuillez entrer vos informations de connexion.")
+            st.write("Unauthorized access. Please enter your login details.")
     
     elif option == "CV Analysis and Job Match":
         automated_cv_analysis()  # Cette option reste publique
