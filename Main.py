@@ -77,7 +77,277 @@ def authenticate_user():
     else:
         return False
 
+def comparaison_cv():
 
+    # Fonction d'authentification avec gestion automatique du refresh token
+    def authenticate_google_drive():
+        creds = None
+        SCOPES = ['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/drive.readonly']
+
+        # Charger le token existant s'il existe
+        if os.path.exists('token.json'):
+            creds = Credentials.from_authorized_user_file('token.json', SCOPES)
+
+        # Vérifier si le token est expiré et peut être rafraîchi
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+
+        # Si aucune crédential valide n'est trouvée, demander une nouvelle authentification
+        if not creds or not creds.valid:
+            flow = InstalledAppFlow.from_client_secrets_file('credentialss.json', SCOPES)
+            creds = flow.run_local_server(port=8080, access_type='offline', prompt='consent')
+
+            # Sauvegarder le token pour réutilisation future
+            with open('token.json', 'w') as token:
+                token.write(creds.to_json())
+
+        return build('drive', 'v3', credentials=creds)
+
+     # Fonction pour chercher un fichier par son nom dans un répertoire spécifique sur Google Drive
+    def find_file_in_drive(service, file_name, folder_id):
+        query = f"'{folder_id}' in parents and name='{file_name}'"
+        results = service.files().list(q=query).execute()
+        files = results.get('files', [])
+        if not files:
+            return None
+        return files[0]  # Retourner le premier fichier trouvé (si plusieurs fichiers ont le même nom, retourne le premier)
+   
+    # Fonction pour télécharger un fichier depuis Google Drive
+    def download_file_from_drive(service, file_id):
+        request = service.files().get_media(fileId=file_id)
+        file = io.BytesIO()
+        downloader = MediaIoBaseDownload(file, request)
+        done = False
+        while done is False:
+            status, done = downloader.next_chunk()
+        file.seek(0)  # Remettre le curseur au début du fichier
+        return file
+    
+        # Fonction pour vérifier si un fichier existe déjà dans le dossier Output sur Google Drive
+    def file_exists_in_output(service, file_name, output_folder_id):
+        query = f"'{output_folder_id}' in parents and name='{file_name}'"
+        results = service.files().list(q=query).execute()
+        files = results.get('files', [])
+        return len(files) > 0  # Si la longueur de la liste est > 0, cela signifie qu'un fichier existe déjà
+    
+        # Fonction pour télécharger un fichier vers un autre répertoire de Google Drive
+    def upload_file_to_drive(service, file_name, file_content, folder_id):
+        # Créer un répertoire temporaire dédié
+        temp_dir = os.path.join(os.getcwd(), 'temp_uploads')
+        if not os.path.exists(temp_dir):
+            os.makedirs(temp_dir)  # Créer le répertoire s'il n'existe pas
+
+        temp_file_path = os.path.join(temp_dir, file_name)
+        
+        # Créer un fichier temporaire avec delete=False
+        with open(temp_file_path, 'wb') as temp_file:
+            temp_file.write(file_content.read())  # Écrire le contenu du fichier téléchargé
+            temp_file.flush()  # Assurez-vous que tout est écrit dans le fichier
+
+        # Créer le média pour l'upload
+        media = MediaFileUpload(temp_file_path, mimetype='application/octet-stream')
+
+        # Metadata du fichier à télécharger
+        file_metadata = {
+            'name': file_name,
+            'parents': [folder_id]
+        }
+
+        # Télécharger le fichier vers Google Drive
+        uploaded_file = service.files().create(
+            media_body=media,
+            body=file_metadata,
+            fields='id'
+        ).execute()
+
+        # Attendre un petit moment avant de supprimer le fichier pour éviter des conflits
+        time.sleep(1)
+
+        # Essayer plusieurs fois de supprimer le fichier (si le fichier est encore utilisé)
+        for _ in range(3):
+            try:
+                os.remove(temp_file_path)  # Supprimer le fichier temporaire
+                break  # Sortir de la boucle dès que le fichier est supprimé avec succès
+            except PermissionError:
+                time.sleep(1)  # Attendre un peu avant de réessayer
+
+        return uploaded_file
+    
+    # 📌 Fonction pour extraire les technologies du CV sans doublons et leur fréquence
+    def extract_technologies_with_count(text):
+        # Liste complète des compétences à extraire
+        tech_keywords = [
+            # Data Engineer
+            "Python", "SQL", "Spark", "AWS", "Kafka", "Airflow", "Snowflake", "Redshift", "Databricks", "Docker", "Kubernetes", "Jenkins", "ETL", "Pipeline",
+
+            # Data Scientist
+            "Machine Learning", "Deep Learning", "NLP", "Computer Vision", "TensorFlow", "PyTorch", "Keras", "Scikit-learn", "Transformers", "BERT", "LSTM", "GANs", "Reinforcement Learning",
+
+            # Data Analyst
+            "Tableau", "Power BI", "SQL", "Excel", "Looker", "Google Data Studio", "DAX", "Pandas", "Matplotlib", "Reporting", "ETL", "Dashboard", "Visualization",
+
+            # DevOps
+            "Docker", "Kubernetes", "Terraform", "CI/CD", "Ansible", "Jenkins", "Git", "Helm", "Prometheus", "Grafana", "ArgoCD", "Istio", "OpenShift", "Infrastructure as Code",
+
+            # Backend Developer
+            "Java", "Spring Boot", "Microservices", "Hibernate", "REST API", "JPA", "SQL", "NoSQL", "RabbitMQ", "Kafka", "GraphQL", "WebFlux", "Docker", "Kubernetes",
+
+            # Frontend Developer
+            "React", "Angular", "Vue.js", "JavaScript", "TypeScript", "HTML", "CSS", "Redux", "Next.js", "Nuxt.js", "Tailwind", "Material-UI", "Cypress", "Jest", "Storybook", "Webpack",
+
+            # Mobile Developer
+            "Swift", "Kotlin", "Flutter", "React Native", "Android", "iOS", "Jetpack Compose", "SwiftUI", "Objective-C", "Dart", "Mobile UI/UX", "GraphQL", "Firebase",
+
+            # Big Data Engineer
+            "Hadoop", "Hive", "Pig", "Scala", "Spark", "Presto", "Flink", "HBase", "Cassandra", "ElasticSearch", "MapReduce", "Delta Lake", "Kudu", "YARN", "Zookeeper",
+
+            # Cybersecurity Analyst
+            "Cybersecurity", "Penetration Testing", "SIEM", "IDS/IPS", "Firewall", "Ethical Hacking", "Kali Linux", "Metasploit", "OWASP", "Burp Suite", "Nmap", "Security Compliance",
+
+            # ETL Developer
+            "ETL", "Talend", "SSIS", "Informatica", "DataStage", "Azure Data Factory", "Apache Nifi", "Pentaho", "Snowflake", "SQL", "Data Warehouse", "OLAP",
+
+            # Database Administrator
+            "Oracle", "MySQL", "PostgreSQL", "MongoDB", "Redis", "Cassandra", "MariaDB", "CockroachDB", "Elasticsearch", "TimescaleDB", "SQL", "NoSQL", "Database Replication", "Indexing",
+
+            # CRM Consultant
+            "Salesforce", "SAP", "ERP", "CRM", "Dynamics 365", "Zoho CRM", "HubSpot", "Workday", "NetSuite", "ServiceNow", "Business Process Automation", "RPA",
+
+            # Business Intelligence Analyst
+            "Excel", "VBA", "R", "Power BI", "Tableau", "SAS", "QlikView", "SQL", "Alteryx", "ETL", "Reporting", "KPI", "Business Intelligence", "Dashboarding",
+
+            # Cloud Engineer
+            "GCP", "AWS", "Azure", "Terraform", "Ansible", "CloudFormation", "Kubernetes", "Lambda", "Serverless", "DevOps", "Cloud Security", "IAM", "Networking",
+
+            # AI Researcher
+            "Computer Vision", "OpenCV", "YOLO", "Deep Learning", "TensorFlow", "PyTorch", "GANs", "Image Segmentation", "Object Detection", "Image Processing",
+
+            # Blockchain Developer
+            "Blockchain", "Ethereum", "Smart Contracts", "Solidity", "Hyperledger", "Polkadot", "Binance Smart Chain", "DeFi", "dApps", "NFTs", "Consensus Mechanisms",
+
+            # IoT Engineer
+            "IoT", "MQTT", "Edge Computing", "Raspberry Pi", "Arduino", "LoRaWAN", "Zigbee", "Smart Devices", "Industrial IoT", "IoT Security",
+
+            # Network Engineer
+            "Networking", "TCP/IP", "BGP", "OSPF", "SDN", "Cisco", "Juniper", "Wireshark", "Routing", "Switching", "Network Security", "VLAN", "MPLS",
+
+            # IT Project Manager
+            "Project Management", "Agile", "Scrum", "PMP", "Kanban", "Jira", "Confluence", "SAFe", "Prince2", "Risk Management", "Stakeholder Management", "Product Ownership"
+        ]
+        
+        # Créer une expression régulière pour chaque technologie (en échappant les espaces et les parenthèses)
+        tech_regex = [re.escape(tech.lower()) for tech in tech_keywords]
+        combined_regex = r'\b(' + r'|'.join(tech_regex) + r')\b'
+
+        # Trouver toutes les correspondances dans le texte (insensible à la casse)
+        found_technologies = re.findall(combined_regex, text.lower())
+
+        # Compter la fréquence des technologies, sans doublons
+        tech_counts = Counter(found_technologies)
+
+        # Retourner la liste des technologies avec leur fréquence sous forme de dictionnaire
+        return dict(tech_counts)
+
+    def compare_tech_lists(techs_cv, techs_job):
+        # Union de toutes les technologies pour créer le vocabulaire
+        all_techs = list(set(techs_cv + techs_job))
+        vectorizer = CountVectorizer(vocabulary=all_techs)
+
+        # Vectorisation
+        cv_vec = vectorizer.fit_transform([" ".join(techs_cv)])
+        job_vec = vectorizer.transform([" ".join(techs_job)])
+
+        # Calcul de similarité cosinus
+        cosine_score = cosine_similarity(cv_vec, job_vec)[0][0]
+
+        # Calcul du score de couverture (proportion des mots de l'offre présents dans le CV)
+        job_set = set(techs_job)
+        common = set(techs_cv).intersection(job_set)
+        coverage_score = len(common) / len(job_set) if job_set else 0
+
+        # 🧠 Combinaison des deux : tu peux ajuster les pondérations
+        final_score = 0.4 * cosine_score + 0.6 * coverage_score
+
+        return final_score
+    
+    # Fonction pour comparer les technologies du CV avec celles de l'offre d'emploi
+    def compare_technologies_with_cvs(job_description):
+        job_tech_counts = extract_technologies_with_count(job_description)
+        matching_cvs = []
+
+        file_url = "https://drive.google.com/uc?id=1-5Hw-uq7-NFJjcU7LuD_pgK42yJc8lxR"
+        df = pd.read_csv(gdown.download(file_url, quiet=True), on_bad_lines='skip')
+
+        cvs_folder_id = "1HNftka5J3QEf2mV2ZZsRMQMNHgpPD_K0"
+        service = authenticate_google_drive()
+
+        if service:
+            for _, row in df.iterrows():
+                cv_file_name = row['cv_filename']
+                cv_text = row['text']
+                tech_counts = extract_technologies_with_count(cv_text)
+
+                common_tech = set(tech_counts.keys()).intersection(set(job_tech_counts.keys()))
+                if common_tech:
+                    techs_cv = list(tech_counts.keys())
+                    techs_job = list(job_tech_counts.keys())
+                    similarity_score = compare_tech_lists(techs_cv, techs_job)
+                    matching_cvs.append({
+                        'cv_file': cv_file_name,
+                        'common_tech': common_tech,
+                        'tech_counts': tech_counts,
+                        'job_tech_counts': job_tech_counts,
+                        'similarity_score': similarity_score,
+                    })
+
+        return matching_cvs
+
+    # Fonction pour exporter les CVs correspondants dans un dossier Google Drive
+    def export_matching_cvs(matching_cvs, output_folder_id):
+        service = authenticate_google_drive()
+        if service:
+            for match in matching_cvs[:5]:
+                cv_file_name = match['cv_file']
+                file = find_file_in_drive(service, cv_file_name, "1HNftka5J3QEf2mV2ZZsRMQMNHgpPD_K0")
+
+                if file:
+                    file_content = download_file_from_drive(service, file['id'])
+                    if not file_exists_in_output(service, cv_file_name, output_folder_id):
+                        uploaded_file = upload_file_to_drive(service, cv_file_name, file_content, output_folder_id)
+                        download_link = f"https://drive.google.com/uc?id={uploaded_file['id']}"
+                        st.success(f"The file '{cv_file_name}' has been successfully saved to the database.")
+                        st.markdown(f"[Download file here]({download_link})")
+                    else:
+                        st.warning(f"The file '{cv_file_name}' already exists in the database.")
+                        file = find_file_in_drive(service, cv_file_name, output_folder_id)
+                        download_link = f"https://drive.google.com/uc?id={file['id']}"
+                        st.markdown(f"[Download file here]({download_link})")
+                else:
+                    st.error(f"The file '{cv_file_name}' was not found in the database.")
+
+    job_description = st.text_area("Enter the text of the job offer")
+    if job_description:
+        st.subheader("🔍 Comparison of supply technologies with CVs")
+        matching_cvs = compare_technologies_with_cvs(job_description)
+
+        if matching_cvs:
+            matching_cvs_sorted = sorted(matching_cvs, key=lambda x: x['similarity_score'], reverse=True)[:5]
+            data = []
+            for match in matching_cvs_sorted:
+                data.append({
+                    "CV name": match["cv_file"],
+                    "Common technologies": ", ".join(match["common_tech"]),
+                    "Similarity score": round(match["similarity_score"], 2)
+                })
+            st.write(pd.DataFrame(data).sort_values(by="Similarity score", ascending=False))
+
+            output_folder_id = '13mvWA3lyVWq1VwLAeDsNFSY0GslnRp2v'
+            export_matching_cvs(matching_cvs_sorted, output_folder_id)
+        else:
+            st.write("No common technologies found in CVs.")
+    else:
+        st.error("Please enter the text of the job offer.")
+                
 # --- Script 1: Resume Classification Model Training ---
 def resume_classification():
     nltk.download("stopwords")
@@ -554,14 +824,6 @@ def automated_cv_analysis():
         # Par défaut, classer comme Junior si aucune correspondance n'est trouvée
         return "Junior"
 
-    # 📌 Fonction pour créer un nuage de mots
-    def generate_wordcloud(text):
-        wordcloud = WordCloud(width=800, height=400, background_color="white").generate(text)
-        plt.figure(figsize=(10, 5))
-        plt.imshow(wordcloud, interpolation="bilinear")
-        plt.axis("off")
-        st.pyplot(plt)
-
     # 📌 Fonction pour générer un graphique radar des compétences
     def plot_radar_chart(user_skills, ideal_profile):
         labels = list(set(user_skills.keys()).union(set(ideal_profile.keys())))
@@ -714,103 +976,8 @@ def automated_cv_analysis():
         else:
             st.error(f"The file with the given ID{file_id} was not found in the database.")
             return None
-       
-    # Fonction pour comparer les technologies du CV avec celles de l'offre d'emploi
-    def compare_technologies_with_cvs(job_description):
-        job_tech_counts = extract_technologies_with_count(job_description)
-        matching_cvs = []
 
-        file_url = "https://drive.google.com/uc?id=1-5Hw-uq7-NFJjcU7LuD_pgK42yJc8lxR"
-        df = pd.read_csv(gdown.download(file_url, quiet=True), on_bad_lines='skip')
-
-        cvs_folder_id = "1HNftka5J3QEf2mV2ZZsRMQMNHgpPD_K0"
-        service = authenticate_google_drive()
-
-        if service:
-            for _, row in df.iterrows():
-                cv_file_name = row['cv_filename']
-                cv_text = row['text']
-                tech_counts = extract_technologies_with_count(cv_text)
-
-                common_tech = set(tech_counts.keys()).intersection(set(job_tech_counts.keys()))
-                if common_tech:
-                    similarity_score = compare_texts(cv_text, job_description)
-                    matching_cvs.append({
-                        'cv_file': cv_file_name,
-                        'common_tech': common_tech,
-                        'tech_counts': tech_counts,
-                        'job_tech_counts': job_tech_counts,
-                        'similarity_score': similarity_score,
-                    })
-
-        return matching_cvs
     
-    # Fonction pour exporter les CVs correspondants dans un dossier Google Drive
-    def export_matching_cvs(matching_cvs, output_folder_id):
-        service = authenticate_google_drive()
-        if service:
-            for match in matching_cvs[:5]:
-                cv_file_name = match['cv_file']
-                file = find_file_in_drive(service, cv_file_name, "1HNftka5J3QEf2mV2ZZsRMQMNHgpPD_K0")
-
-                if file:
-                    file_content = download_file_from_drive(service, file['id'])
-                    if not file_exists_in_output(service, cv_file_name, output_folder_id):
-                        uploaded_file = upload_file_to_drive(service, cv_file_name, file_content, output_folder_id)
-                        download_link = f"https://drive.google.com/uc?id={uploaded_file['id']}"
-                        st.success(f"The file '{cv_file_name}' has been successfully saved to the database.")
-                        st.markdown(f"[Download file here]({download_link})")
-                    else:
-                        st.warning(f"The file '{cv_file_name}' already exists in the database.")
-                        file = find_file_in_drive(service, cv_file_name, output_folder_id)
-                        download_link = f"https://drive.google.com/uc?id={file['id']}"
-                        st.markdown(f"[Download file here]({download_link})")
-                else:
-                    st.error(f"The file '{cv_file_name}' was not found in the database.")
-
-    # 📌 Fonction pour comparer les technologies détectées avec l'offre d'emploi
-    def compare_technologies_with_job(tech_counts, job_description):
-        # Extraire les technologies de l'offre d'emploi
-        job_tech_counts = extract_technologies_with_count(job_description)
-
-        # Calculer le nombre de technologies communes entre le CV et l'offre d'emploi
-        common_tech = set(tech_counts.keys()).intersection(set(job_tech_counts.keys()))
-        common_tech_count = sum([min(tech_counts[tech], job_tech_counts[tech]) for tech in common_tech])
-
-        return common_tech_count
-
-    # 📌 Fonction pour obtenir les mots les plus fréquents dans un texte
-    def get_top_keywords(text, num_keywords=5):
-        words = text.split()
-        words = [word for word in words if word not in stopwords.words("french")]  # Supprimer les stopwords
-        word_counts = Counter(words)
-        return word_counts.most_common(num_keywords)
-
-    # 📌 Fonction pour créer un nuage de mots à partir des mots les plus fréquents
-    def generate_top_keywords_wordcloud(text):
-        # Extraire les 5 mots les plus fréquents
-        top_keywords = get_top_keywords(text, num_keywords=5)
-        
-        # Créer un dictionnaire avec les mots et leurs fréquences
-        word_freq = dict(top_keywords)
-
-        # Générer le nuage de mots avec les fréquences
-        wordcloud = WordCloud(width=800, height=400, background_color="white").generate_from_frequencies(word_freq)
-
-        # Affichage du nuage de mots
-        plt.figure(figsize=(10, 5))
-        plt.imshow(wordcloud, interpolation="bilinear")
-        plt.axis("off")
-        st.pyplot(plt)
-
-    # 📌 Fonction pour comparer les textes
-    def compare_texts(text1, text2):
-        # Vectorisation des textes
-        vectorizer = CountVectorizer().fit_transform([text1, text2])
-        cosine_sim = cosine_similarity(vectorizer[0:1], vectorizer[1:2])
-        
-        return cosine_sim[0][0]
-
     def download_from_drive(file_id, local_path):
         # Télécharger un fichier depuis Google Drive
         url = f'https://drive.google.com/uc?export=download&id={file_id}'
@@ -901,7 +1068,6 @@ def automated_cv_analysis():
         return predicted_category, predicted_experience
 
 
-
     # 📌 Interface Streamlit
     st.title("📄🤖 CV Analysis & Job Match")
     st.subheader("Upload a CV and get a job prediction")
@@ -979,30 +1145,6 @@ def automated_cv_analysis():
             # Visualisation avec le graphique radar
             plot_radar_chart(user_skills, ideal_profile)
 
-            tech_counts = extract_technologies_with_count(cv_text)
-
-            job_description = st.text_area("Enter the text of the job offer")
-            if job_description:
-                st.subheader("🔍 Comparison of supply technologies with CVs")
-                matching_cvs = compare_technologies_with_cvs(job_description)
-
-                if matching_cvs:
-                    matching_cvs_sorted = sorted(matching_cvs, key=lambda x: x['similarity_score'], reverse=True)[:5]
-                    data = []
-                    for match in matching_cvs_sorted:
-                        data.append({
-                            "CV name": match["cv_file"],
-                            "Common technologies": ", ".join(match["common_tech"]),
-                            "Similarity score": round(match["similarity_score"], 2)
-                        })
-                    st.write(pd.DataFrame(data).sort_values(by="Similarity score", ascending=False))
-
-                    output_folder_id = '13mvWA3lyVWq1VwLAeDsNFSY0GslnRp2v'
-                    export_matching_cvs(matching_cvs_sorted, output_folder_id)
-                else:
-                    st.write("No common technologies found in CVs.")
-            else:
-                st.error("Please enter the text of the job offer.")
 
 def set_sidebar_style():
     st.markdown("""
@@ -1053,22 +1195,26 @@ def main():
     # Utiliser des boutons radio pour les onglets (afin de mieux les styliser)
     option = st.sidebar.radio(
         "Choose a tab",
-        ("Resume Classification", "CV Analysis and Job Match"),
+        ("Smart Resume Classification", "CV Analysis & Job Match","CV vs Job Offer Comparison"),
         index=0,  # Index de l'onglet par défaut
         key="sidebar_radio"
     )
 
     # Sécuriser l'option "Resume Classification"
-    if option == "Resume Classification":
+    if option == "Smart Resume Classification":
         # Demander l'authentification avant d'accéder à cette option
         if authenticate_user():
             resume_classification()  # Si authentification réussie, afficher le contenu
         else:
             st.title("📂✨ Smart Resume Classification")
             st.write("Unauthorized access. Please enter your login details.")
-    
-    elif option == "CV Analysis and Job Match":
+
+    elif option == "CV Analysis & Job Match":
         automated_cv_analysis()  # Cette option reste publique
+
+    elif option == "CV vs Job Offer Comparison":
+        st.title("🔍💼 CV vs Job Offer Comparison")
+        comparaison_cv()  # Troisième option ajoutée
 
 if __name__ == "__main__":
     main()
