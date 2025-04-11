@@ -178,19 +178,19 @@ def comparaison_cv():
         # Liste complète des compétences à extraire
         tech_keywords = [
             # Data Engineer
-            "Python", "SQL", "Spark", "AWS", "Kafka", "Airflow", "Snowflake", "Redshift", "Databricks", "Docker", "Kubernetes", "Jenkins", "ETL", "Pipeline",
+            "Python", "Spark", "AWS", "Kafka", "Airflow", "Snowflake", "Redshift", "Databricks", "Docker", "Kubernetes", "Jenkins", "ETL", "Pipeline",
 
             # Data Scientist
             "Machine Learning", "Deep Learning", "NLP", "Computer Vision", "TensorFlow", "PyTorch", "Keras", "Scikit-learn", "Transformers", "BERT", "LSTM", "GANs", "Reinforcement Learning",
 
             # Data Analyst
-            "Tableau", "Power BI", "SQL", "Excel", "Looker", "Google Data Studio", "DAX", "Pandas", "Matplotlib", "Reporting", "ETL", "Dashboard", "Visualization",
+            "Tableau", "Power BI", "Excel", "Looker", "Google Data Studio", "DAX", "Pandas", "Matplotlib", "Reporting", "ETL", "Dashboard", "Visualization",
 
             # DevOps
             "Docker", "Kubernetes", "Terraform", "CI/CD", "Ansible", "Jenkins", "Git", "Helm", "Prometheus", "Grafana", "ArgoCD", "Istio", "OpenShift", "Infrastructure as Code",
 
             # Backend Developer
-            "Java", "Spring Boot", "Microservices", "Hibernate", "REST API", "JPA", "SQL", "NoSQL", "RabbitMQ", "Kafka", "GraphQL", "WebFlux", "Docker", "Kubernetes",
+            "Java", "Spring Boot", "Microservices", "Hibernate", "REST API", "JPA", "NoSQL", "RabbitMQ", "Kafka", "GraphQL", "WebFlux", "Docker", "Kubernetes",
 
             # Frontend Developer
             "React", "Angular", "Vue.js", "JavaScript", "TypeScript", "HTML", "CSS", "Redux", "Next.js", "Nuxt.js", "Tailwind", "Material-UI", "Cypress", "Jest", "Storybook", "Webpack",
@@ -205,10 +205,10 @@ def comparaison_cv():
             "Cybersecurity", "Penetration Testing", "SIEM", "IDS/IPS", "Firewall", "Ethical Hacking", "Kali Linux", "Metasploit", "OWASP", "Burp Suite", "Nmap", "Security Compliance",
 
             # ETL Developer
-            "ETL", "Talend", "SSIS", "Informatica", "DataStage", "Azure Data Factory", "Apache Nifi", "Pentaho", "Snowflake", "SQL", "Data Warehouse", "OLAP",
+            "ETL", "Talend", "SSIS", "Informatica", "DataStage", "Azure Data Factory", "Apache Nifi", "Pentaho", "Snowflake","Data Warehouse", "OLAP",
 
             # Database Administrator
-            "Oracle", "MySQL", "PostgreSQL", "MongoDB", "Redis", "Cassandra", "MariaDB", "CockroachDB", "Elasticsearch", "TimescaleDB", "SQL", "NoSQL", "Database Replication", "Indexing",
+            "Oracle", "MySQL", "PostgreSQL", "MongoDB", "Redis", "Cassandra", "MariaDB", "CockroachDB", "Elasticsearch", "TimescaleDB","NoSQL", "Database Replication", "Indexing",
 
             # CRM Consultant
             "Salesforce", "SAP", "ERP", "CRM", "Dynamics 365", "Zoho CRM", "HubSpot", "Workday", "NetSuite", "ServiceNow", "Business Process Automation", "RPA",
@@ -721,19 +721,19 @@ def automated_cv_analysis():
         # Liste complète des compétences à extraire
         tech_keywords = [
             # Data Engineer
-            "Python", "SQL", "Spark", "AWS", "Kafka", "Airflow", "Snowflake", "Redshift", "Databricks", "Docker", "Kubernetes", "Jenkins", "ETL", "Pipeline",
+            "Python", "Spark", "AWS", "Kafka", "Airflow", "Snowflake", "Redshift", "Databricks", "Docker", "Kubernetes", "Jenkins", "ETL", "Pipeline",
 
             # Data Scientist
             "Machine Learning", "Deep Learning", "NLP", "Computer Vision", "TensorFlow", "PyTorch", "Keras", "Scikit-learn", "Transformers", "BERT", "LSTM", "GANs", "Reinforcement Learning",
 
             # Data Analyst
-            "Tableau", "Power BI", "SQL", "Excel", "Looker", "Google Data Studio", "DAX", "Pandas", "Matplotlib", "Reporting", "ETL", "Dashboard", "Visualization",
+            "Tableau", "Power BI", "Excel", "Looker", "Google Data Studio", "DAX", "Pandas", "Matplotlib", "Reporting", "ETL", "Dashboard", "Visualization",
 
             # DevOps
             "Docker", "Kubernetes", "Terraform", "CI/CD", "Ansible", "Jenkins", "Git", "Helm", "Prometheus", "Grafana", "ArgoCD", "Istio", "OpenShift", "Infrastructure as Code",
 
             # Backend Developer
-            "Java", "Spring Boot", "Microservices", "Hibernate", "REST API", "JPA", "SQL", "NoSQL", "RabbitMQ", "Kafka", "GraphQL", "WebFlux", "Docker", "Kubernetes",
+            "Java", "Spring Boot", "Microservices", "Hibernate", "REST API", "JPA", "NoSQL", "RabbitMQ", "Kafka", "GraphQL", "WebFlux", "Docker", "Kubernetes",
 
             # Frontend Developer
             "React", "Angular", "Vue.js", "JavaScript", "TypeScript", "HTML", "CSS", "Redux", "Next.js", "Nuxt.js", "Tailwind", "Material-UI", "Cypress", "Jest", "Storybook", "Webpack",
@@ -748,16 +748,16 @@ def automated_cv_analysis():
             "Cybersecurity", "Penetration Testing", "SIEM", "IDS/IPS", "Firewall", "Ethical Hacking", "Kali Linux", "Metasploit", "OWASP", "Burp Suite", "Nmap", "Security Compliance",
 
             # ETL Developer
-            "ETL", "Talend", "SSIS", "Informatica", "DataStage", "Azure Data Factory", "Apache Nifi", "Pentaho", "Snowflake", "SQL", "Data Warehouse", "OLAP",
+            "ETL", "Talend", "SSIS", "Informatica", "DataStage", "Azure Data Factory", "Apache Nifi", "Pentaho", "Snowflake","Data Warehouse", "OLAP",
 
             # Database Administrator
-            "Oracle", "MySQL", "PostgreSQL", "MongoDB", "Redis", "Cassandra", "MariaDB", "CockroachDB", "Elasticsearch", "TimescaleDB", "SQL", "NoSQL", "Database Replication", "Indexing",
+            "Oracle", "MySQL", "PostgreSQL", "MongoDB", "Redis", "Cassandra", "MariaDB", "CockroachDB", "Elasticsearch", "TimescaleDB","NoSQL", "Database Replication", "Indexing",
 
             # CRM Consultant
             "Salesforce", "SAP", "ERP", "CRM", "Dynamics 365", "Zoho CRM", "HubSpot", "Workday", "NetSuite", "ServiceNow", "Business Process Automation", "RPA",
 
             # Business Intelligence Analyst
-            "Excel", "VBA", "R", "Power BI", "Tableau", "SAS", "QlikView", "SQL", "Alteryx", "ETL", "Reporting", "KPI", "Business Intelligence", "Dashboarding",
+            "Excel", "VBA", "Power BI", "Tableau", "SAS", "QlikView","Alteryx", "ETL", "Reporting", "KPI", "Business Intelligence", "Dashboarding",
 
             # Cloud Engineer
             "GCP", "AWS", "Azure", "Terraform", "Ansible", "CloudFormation", "Kubernetes", "Lambda", "Serverless", "DevOps", "Cloud Security", "IAM", "Networking",
@@ -1076,7 +1076,7 @@ def automated_cv_analysis():
 
     # 🔥 L'utilisateur peut définir son propre profil idéal
     st.subheader("🔧 Define your ideal profile")
-    available_skills = ["Python","SQL","Sql","Spark","AWS","Kafka","Airflow","Snowflake","Redshift","Databricks","Docker","Kubernetes","Jenkins","ETL","Pipeline","Machine Learning",
+    available_skills = ["Python","Spark","AWS","Kafka","Airflow","Snowflake","Redshift","Databricks","Docker","Kubernetes","Jenkins","ETL","Pipeline","Machine Learning",
             "Deep Learning","NLP","Computer Vision","TensorFlow","PyTorch","Keras","Scikit-learn","Transformers","BERT","LSTM","GANs","Reinforcement Learning","Tableau",
             "Power BI","Excel","Looker","Google Data Studio","DAX","Pandas","Matplotlib","Reporting","Dashboard","Visualization","Terraform","CI/CD","Ansible","Git","Helm","Prometheus","Grafana","ArgoCD","Istio",
             "OpenShift","Infrastructure as Code","Java","Spring Boot","Microservices","Hibernate","REST API","JPA","NoSQL","RabbitMQ","GraphQL","WebFlux","React","Angular","Vue.js","JavaScript","TypeScript","HTML","CSS","Redux","Next.js","Nuxt.js","Tailwind",
@@ -1085,7 +1085,7 @@ def automated_cv_analysis():
             "Burp Suite","Nmap","Security Compliance","Talend","SSIS","Informatica","DataStage","Azure Data Factory","Apache Nifi","Pentaho",
             "Data Warehouse","OLAP","Oracle","MySQL","PostgreSQL","MongoDB","Redis","MariaDB","CockroachDB","Elasticsearch","TimescaleDB",
             "Database Replication","Indexing","Salesforce","SAP","ERP","CRM","Dynamics 365","Zoho CRM","HubSpot","Workday","NetSuite","ServiceNow",
-            "Business Process Automation","RPA","VBA","R","SAS","QlikView","Alteryx","KPI","Business Intelligence","Dashboarding","GCP","Azure","CloudFormation","Lambda","Serverless","DevOps","Cloud Security","IAM","Networking","OpenCV","YOLO",
+            "Business Process Automation","RPA","VBA","SAS","QlikView","Alteryx","KPI","Business Intelligence","Dashboarding","GCP","Azure","CloudFormation","Lambda","Serverless","DevOps","Cloud Security","IAM","Networking","OpenCV","YOLO",
             "Image Segmentation","Object Detection","Image Processing","Blockchain","Ethereum","Smart Contracts","Solidity","Hyperledger","Polkadot",
             "Binance Smart Chain","DeFi","dApps","NFTs","Consensus Mechanisms","IoT","MQTT","Edge Computing","Raspberry Pi","Arduino","LoRaWAN","Zigbee","Smart Devices",
             "Industrial IoT","IoT Security","TCP/IP","BGP","OSPF","SDN","Cisco","Juniper","Wireshark","Routing","Switching","Network Security","VLAN","MPLS",
