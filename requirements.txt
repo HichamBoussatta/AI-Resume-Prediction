@@ -19,3 +19,4 @@ pydrive
 oauth2client
 google-auth-oauthlib
 fitz
+frontend
