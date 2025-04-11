@@ -49,7 +49,7 @@ from googleapiclient.http import MediaIoBaseDownload, MediaIoBaseUpload, MediaFi
 from googleapiclient.errors import HttpError
 import tempfile
 import time
-
+import fitz  # PyMuPDF
 
 # --- Fonction d'authentification ---
 def authenticate_user():
@@ -76,6 +76,199 @@ def authenticate_user():
         return True
     else:
         return False
+
+def resume_exctraction():
+    # Fonction d'authentification Google Drive
+    def authenticate_google_drive():
+        creds = None
+        SCOPES = ['https://www.googleapis.com/auth/drive.file']  # Modifier pour accorder accès aux fichiers
+
+        if os.path.exists('token.json'):
+            creds = Credentials.from_authorized_user_file('token.json', SCOPES)
+
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+
+        if not creds or not creds.valid:
+            flow = InstalledAppFlow.from_client_secrets_file('credentialss.json', SCOPES)
+            creds = flow.run_local_server(port=8080, access_type='offline', prompt='consent')
+            with open('token.json', 'w') as token:
+                token.write(creds.to_json())
+
+        return build('drive', 'v3', credentials=creds)
+
+    # Fonction pour extraire le texte d'un fichier PDF
+    def extract_text_from_pdf(pdf_path):
+        doc = fitz.open(pdf_path)
+        text = ""
+        for page in doc:
+            text += page.get_text()
+        return text
+
+    # Fonction pour extraire le texte d'un fichier Word (docx)
+    def extract_text_from_word(word_path):
+        doc = docx.Document(word_path)
+        text = ""
+        for para in doc.paragraphs:
+            text += para.text + "\n"
+        return text
+
+    # Fonction pour extraire le texte d'un fichier (PDF ou Word)
+    def extract_text(file_path):
+        try:
+            if file_path.endswith('.pdf'):
+                return extract_text_from_pdf(file_path)
+            elif file_path.endswith('.docx'):
+                return extract_text_from_word(file_path)
+            else:
+                return ""
+        except Exception as e:
+            print(f"Erreur lors de l'extraction du fichier {file_path}: {e}")
+            return ""  # Retourne une chaîne vide si une erreur se produit
+
+    # Fonction pour récupérer les fichiers depuis Google Drive
+    def get_drive_files(service, folder_id):
+        query = f"'{folder_id}' in parents"
+        results = service.files().list(q=query).execute()
+        items = results.get('files', [])
+        return items
+
+    # Fonction pour télécharger un fichier depuis Google Drive
+    def download_file(service, file_id, file_name):
+        try:
+            file_info = service.files().get(fileId=file_id).execute()
+            mime_type = file_info['mimeType']
+
+            if mime_type == 'application/vnd.google-apps.document':  # Google Docs
+                request = service.files().export_media(fileId=file_id, mimeType='text/plain')
+            elif mime_type == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':  # DOCX
+                request = service.files().get_media(fileId=file_id)
+            else:  # PDF ou autre type de fichier
+                request = service.files().get_media(fileId=file_id)
+
+            file_io = io.BytesIO()
+            downloader = MediaIoBaseDownload(file_io, request)
+
+            done = False
+            while not done:
+                status, done = downloader.next_chunk()
+
+            file_io.seek(0)
+            with open(file_name, 'wb') as f:
+                f.write(file_io.read())
+
+            return file_name  # Retourner le nom du fichier téléchargé
+        except HttpError as error:
+            print(f"Erreur lors du téléchargement du fichier {file_id}: {error}")
+            return None  # En cas d'erreur, retourner None
+
+    def categorize_cvs(dataframe, cv_files, service):
+        # Vectorizer pour transformer les textes en vecteurs TF-IDF
+        vectorizer = TfidfVectorizer(stop_words='english')
+        df_texts = dataframe['text'].values
+        tfidf_matrix = vectorizer.fit_transform(df_texts)
+
+        results = []
+
+        for file in cv_files:
+            file_id = file['id']
+            file_name = file['name']
+
+            downloaded_file_name = download_file(service, file_id, file_name)
+
+            if downloaded_file_name:
+                cv_text = extract_text(downloaded_file_name)
+
+                if cv_text:
+                    cv_vector = vectorizer.transform([cv_text])
+                    similarities = cosine_similarity(cv_vector, tfidf_matrix)
+                    best_match_index = similarities.argmax()
+                    best_category = dataframe.iloc[best_match_index]['category']
+                    results.append({'cv_filename': downloaded_file_name, 'category': best_category, 'text': cv_text})
+
+                os.remove(downloaded_file_name)
+
+        result_df = pd.DataFrame(results)
+        return result_df
+
+    def upload_to_drive(service, file_id, file_data):
+        file_metadata = {
+            'name': 'categorized_cvs.csv',  # Le nom du fichier à uploader
+        }
+        media = MediaFileUpload(file_data, mimetype='text/csv')
+        try:
+            file = service.files().update(
+                fileId=file_id,  # L'ID du fichier Google Drive existant
+                body=file_metadata,
+                media_body=media
+            ).execute()
+            print(f"Fichier mis à jour avec succès sur Google Drive : {file.get('id')}")
+            return file.get('id')  # Retourner l'ID du fichier mis à jour
+        except HttpError as error:
+            print(f"Erreur lors de la mise à jour du fichier sur Google Drive: {error}")
+            return None
+
+    # Fonction pour lire le fichier CSV depuis Google Drive et afficher les 10 premières lignes
+    def display_file_preview(service, file_id):
+        # Télécharger le fichier CSV depuis Google Drive
+        downloaded_file_name = download_file(service, file_id, 'temp_file.csv')
+
+        if downloaded_file_name:
+            # Lire le fichier CSV avec pandas
+            df_preview = pd.read_csv(downloaded_file_name)
+
+            # Afficher les 10 premières lignes
+            st.write("Preview CSV file on database :")
+            st.dataframe(df_preview.head(10))
+
+            # Supprimer le fichier temporaire téléchargé
+            os.remove(downloaded_file_name)
+
+    st.title("Categorizing CVs from Database Drive")
+
+    data = [
+        ("Python SQL Spark AWS Kafka Airflow Snowflake Redshift Databricks Docker Kubernetes Jenkins ETL Pipeline", "Data Engineer"),
+        ("Machine Learning Deep Learning NLP Computer Vision TensorFlow PyTorch Keras Scikit-learn Transformers BERT LSTM GANs Reinforcement Learning", "Data Scientist"),
+        ("Tableau Power BI SQL Excel Looker Google Data Studio DAX Pandas Matplotlib Reporting ETL Dashboard Visualization", "Data Analyst"),
+        ("Docker Kubernetes Terraform CI/CD Ansible Jenkins Git Helm Prometheus Grafana ArgoCD Istio OpenShift Infrastructure as Code", "DevOps"),
+        ("Java Spring Boot Microservices Hibernate REST API JPA SQL NoSQL RabbitMQ Kafka GraphQL WebFlux Docker Kubernetes", "Backend Developer"),
+        ("React Angular Vue.js JavaScript TypeScript HTML CSS Redux Next.js Nuxt.js Tailwind Material-UI Cypress Jest Storybook Webpack", "Frontend Developer"),
+        ("Swift Kotlin Flutter React Native Android iOS Jetpack Compose SwiftUI Objective-C Dart Mobile UI/UX GraphQL Firebase", "Mobile Developer"),
+        ("Hadoop Hive Pig Scala Spark Presto Flink HBase Cassandra ElasticSearch MapReduce Delta Lake Kudu YARN Zookeeper", "Big Data Engineer"),
+        ("Cybersecurity Penetration Testing SIEM IDS/IPS Firewall Ethical Hacking Kali Linux Metasploit OWASP Burp Suite Nmap Security Compliance", "Cybersecurity Analyst"),
+        ("ETL Talend SSIS Informatica DataStage Azure Data Factory Apache Nifi Pentaho Snowflake SQL Data Warehouse OLAP", "ETL Developer"),
+        ("Oracle MySQL PostgreSQL MongoDB Redis Cassandra MariaDB CockroachDB Elasticsearch TimescaleDB SQL NoSQL Database Replication Indexing", "Database Administrator"),
+        ("Salesforce SAP ERP CRM Dynamics 365 Zoho CRM HubSpot Workday NetSuite ServiceNow Business Process Automation RPA", "CRM Consultant"),
+        ("Excel VBA R Power BI Tableau SAS QlikView SQL Alteryx ETL Reporting KPI Business Intelligence Dashboarding", "Business Intelligence Analyst"),
+        ("GCP AWS Azure Terraform Ansible CloudFormation Kubernetes Lambda Serverless DevOps Cloud Security IAM Networking", "Cloud Engineer"),
+        ("Computer Vision OpenCV YOLO Deep Learning TensorFlow PyTorch GANs Image Segmentation Object Detection Image Processing", "AI Researcher"),
+        ("Blockchain Ethereum Smart Contracts Solidity Hyperledger Polkadot Binance Smart Chain DeFi dApps NFTs Consensus Mechanisms", "Blockchain Developer"),
+        ("IoT MQTT Edge Computing Raspberry Pi Arduino LoRaWAN Zigbee Smart Devices Industrial IoT IoT Security", "IoT Engineer"),
+        ("Networking TCP/IP BGP OSPF SDN Cisco Juniper Wireshark Routing Switching Network Security VLAN MPLS", "Network Engineer"),
+        ("Project Management Agile Scrum PMP Kanban Jira Confluence SAFe Prince2 Risk Management Stakeholder Management Product Ownership", "IT Project Manager"),
+    ]
+    df = pd.DataFrame(data, columns=["text", "category"])
+
+    service = authenticate_google_drive()
+
+    folder_id = "1nug4WCqGbsrJOfOmRKIVJW2SoLS6poy1"  # Nouveau folder ID
+    file_id = "1-5Hw-uq7-NFJjcU7LuD_pgK42yJc8lxR"  # L'ID du fichier CSV existant
+
+    # Afficher l'aperçu du fichier CSV
+    display_file_preview(service, file_id)
+
+    files = get_drive_files(service, folder_id)
+
+    if st.button("Categorize resumes"):
+        with st.spinner('Treatment in progress...'):
+            result_df = categorize_cvs(df, files, service)
+
+            # Sauvegarde directement sur Google Drive dans le fichier existant
+            result_df.to_csv("categorized_cvs.csv", index=False, encoding='utf-8')
+
+            # Mise à jour du fichier existant sur Google Drive
+            upload_to_drive(service, file_id, "categorized_cvs.csv")
+            st.success("✅ Results were successfully saved to the database!")
 
 def comparaison_cv():
 
@@ -1195,7 +1388,7 @@ def main():
     # Utiliser des boutons radio pour les onglets (afin de mieux les styliser)
     option = st.sidebar.radio(
         "Choose a tab",
-        ("Smart Resume Classification", "CV Analysis & Job Match","CV vs Job Offer Comparison"),
+        ("CV Data Extraction & Insights","Smart Resume Classification", "CV Analysis & Job Match","CV vs Job Offer Comparison"),
         index=0,  # Index de l'onglet par défaut
         key="sidebar_radio"
     )
@@ -1215,6 +1408,13 @@ def main():
     elif option == "CV vs Job Offer Comparison":
         st.title("🔍💼 CV vs Job Offer Comparison")
         comparaison_cv()  # Troisième option ajoutée
+    elif option == "CV Data Extraction & Insights":
+                # Demander l'authentification avant d'accéder à cette option
+        if authenticate_user():
+            resume_exctraction()  # Si authentification réussie, afficher le contenu
+        else:
+            st.title("📊📝 CV Data Extraction & Insights")
+            st.write("Unauthorized access. Please enter your login details.")
 
 if __name__ == "__main__":
     main()
