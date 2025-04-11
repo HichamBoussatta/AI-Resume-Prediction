@@ -214,7 +214,7 @@ def comparaison_cv():
             "Salesforce", "SAP", "ERP", "CRM", "Dynamics 365", "Zoho CRM", "HubSpot", "Workday", "NetSuite", "ServiceNow", "Business Process Automation", "RPA",
 
             # Business Intelligence Analyst
-            "Excel", "VBA", "R", "Power BI", "Tableau", "SAS", "QlikView", "SQL", "Alteryx", "ETL", "Reporting", "KPI", "Business Intelligence", "Dashboarding",
+            "Excel", "VBA","Power BI", "Tableau", "SAS", "QlikView", "Alteryx", "ETL", "Reporting", "KPI", "Business Intelligence", "Dashboarding",
 
             # Cloud Engineer
             "GCP", "AWS", "Azure", "Terraform", "Ansible", "CloudFormation", "Kubernetes", "Lambda", "Serverless", "DevOps", "Cloud Security", "IAM", "Networking",
